@@ -24,6 +24,8 @@ class Settings(BaseSettings):
             return [i.strip() for i in v.split(",")]
         return v
 
+    ALLOWED_HOSTS: list[str] = ["*"]
+
 
 @lru_cache
 def get_settings() -> Settings:
