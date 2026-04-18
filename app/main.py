@@ -1,8 +1,29 @@
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.core.config import settings
+from app.db.session import sessionmanager
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+)
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    logger.info("Starting up application")
+    await sessionmanager.init(settings.DATABASE_URL)
+    yield
+    logger.info("Shutting down application")
+    await sessionmanager.close()
 
 
 def create_application() -> FastAPI:
@@ -12,6 +33,7 @@ def create_application() -> FastAPI:
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,
         openapi_url="/openapi.json" if settings.DEBUG else None,
+        lifespan=lifespan,
     )
 
     app.add_middleware(

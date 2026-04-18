@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import AnyHttpUrl, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +25,11 @@ class Settings(BaseSettings):
         return v
 
     ALLOWED_HOSTS: list[str] = ["*"]
+
+    # Database configs
+    DATABASE_URL: PostgresDsn
+    DATABASE_POOL_SIZE: int
+    DATABASE_MAX_OVERFLOW: int
 
 
 @lru_cache
