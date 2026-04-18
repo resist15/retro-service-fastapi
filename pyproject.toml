@@ -1,7 +1,14 @@
 [project]
 name = "retro-api"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.0.1"
+description = "FastAPI backend for RetroType"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "bcrypt==4.3.0",
+    "fastapi[standard]>=0.136.0",
+    "passlib>=1.7.4",
+    "sqlalchemy[asyncio]>=2.0.49",
+]
