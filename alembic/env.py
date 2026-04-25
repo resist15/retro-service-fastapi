@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 from app.core.config import settings
-from app.schemas.base import Base
-from app.schemas.user import User
+from app.model.base import Base
+from app.model.user import User
 
 config = context.config
 config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL).replace("%", "%%"))

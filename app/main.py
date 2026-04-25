@@ -8,6 +8,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.core.config import settings
 from app.db.session import sessionmanager
+from app.routers.public_router import public_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,6 +50,7 @@ def create_application() -> FastAPI:
         allowed_hosts=settings.ALLOWED_HOSTS,
     )
 
+    app.include_router(public_router)
     return app
 
 
