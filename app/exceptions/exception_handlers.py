@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.config import settings
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
 from app.schemas.error_response import ErrorDetail, ErrorResponse
@@ -64,7 +65,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request, exc: StarletteHTTPException
     ) -> JSONResponse:
         response = build_response(
-            message=str(exc.detail) if exc.detail else "Starlet Exception",
+            message=str(exc.detail) if settings.DEBUG else "HTTP error occurred",
             status_code=exc.status_code,
             path=request.url.path,
         )
