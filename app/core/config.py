@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     DATABASE_POOL_SIZE: int
     DATABASE_MAX_OVERFLOW: int
 
+    SECRET_KEY: str
+    ACCESS_TOKEN_EXP_DAYS: int
+    ENCODING_ALGORITHM: str
+
 
 @lru_cache
 def get_settings() -> Settings:
