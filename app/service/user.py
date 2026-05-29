@@ -31,3 +31,7 @@ class UserService:
 
         access_token = Authutils.create_access_token(subject=db_user.email)
         return LoginResponse.model_validate({"access_token": access_token})
+
+    async def get_user(self, email) -> UserResponse:
+        db_user = await self.repo.get_user_by_email(email)
+        return UserResponse.model_validate(db_user)

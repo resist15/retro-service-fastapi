@@ -9,6 +9,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.core.config import settings
 from app.db.session import sessionmanager
 from app.exceptions.exception_handlers import register_exception_handlers
+from app.routers.private_router import private_router
 from app.routers.public_router import public_router
 
 logging.basicConfig(
@@ -52,6 +53,7 @@ def create_application() -> FastAPI:
     )
 
     app.include_router(public_router)
+    app.include_router(private_router)
 
     register_exception_handlers(app=app)
     return app
