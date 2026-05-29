@@ -34,4 +34,6 @@ class UserService:
 
     async def get_user(self, email) -> UserResponse:
         db_user = await self.repo.get_user_by_email(email)
+        if db_user != None:
+            raise RetroException(ErrorCode.USER_NOT_FOUND)
         return UserResponse.model_validate(db_user)

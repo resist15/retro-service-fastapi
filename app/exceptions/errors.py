@@ -14,3 +14,4 @@ class ErrorCode(Enum):
         "Internal Error Occured!",
         status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
+    USER_NOT_FOUND = ("User not found.", status.HTTP_404_NOT_FOUND)

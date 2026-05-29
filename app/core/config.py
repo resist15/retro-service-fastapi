@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str
     ACCESS_TOKEN_EXP_DAYS: int
-    ENCODING_ALGORITHM: str
+    ALGORITHM: str
 
 
 @lru_cache
