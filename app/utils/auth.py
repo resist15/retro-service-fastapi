@@ -12,12 +12,12 @@ pwd_context = PasswordHash.recommended()
 
 class Authutils:
     @staticmethod
-    def create_access_token(subject: str) -> str:
+    def create_access_token(data: dict) -> str:
         expiration_time = datetime.now(timezone.utc) + timedelta(
             days=settings.ACCESS_TOKEN_EXP_DAYS
         )
         payload = {
-            "sub": subject,
+            **data,
             "exp": expiration_time,
             "iat": datetime.now(timezone.utc),
         }

@@ -1,8 +1,8 @@
 import time
 import uuid
 
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.observability.logging import (
     bind_request_context,
@@ -15,36 +15,71 @@ log = get_logger(__name__)
 _SKIP_PATHS = frozenset({"/health", "/health/live", "/health/ready", "/metrics"})
 
 
-class RequestIdMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        request_id = str(uuid.uuid4())
-        request.state.request_id = request_id
+class RequestIdMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers", []))
+        request_id = (
+            headers.get(b"x-request-id", b"").decode()
+            or headers.get(b"x-correlation-id", b"").decode()
+            or str(uuid.uuid4())
+        )
+
+        scope["state"] = getattr(scope.get("app"), "state", None) or {}
         bind_request_context(request_id=request_id)
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
+
+        async def send_with_header(message):
+            if message["type"] == "http.response.start":
+                raw_headers = list(message.get("headers", []))
+                raw_headers.append((b"x-request-id", request_id.encode()))
+                raw_headers.append((b"x-correlation-id", request_id.encode()))
+                message = {**message, "headers": raw_headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_header)
 
 
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if request.url.path in _SKIP_PATHS:
-            return await call_next(request)
+class RequestLoggingMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if path in _SKIP_PATHS:
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope)
         start = time.perf_counter()
 
         bind_request_context(
             http_method=request.method,
-            http_path=request.url.path,
-            client_ip=self._get_client_ip(request),
+            http_path=path,
+            client_ip=_get_client_ip(scope),
         )
 
         log.info("request.started")
 
         status_code = 500
+
+        async def wrapped_send(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+            await send(message)
+
         try:
-            response = await call_next(request)
-            status_code = response.status_code
-            return response
+            await self.app(scope, receive, wrapped_send)
         except Exception:
             log.exception("request.unhandled_exception")
             raise
@@ -53,19 +88,18 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             log.info(
                 "request.finished", status_code=status_code, duration_ms=duration_ms
             )
-
             clear_request_context()
-
-    @staticmethod
-    def _get_client_ip(request: Request) -> str:
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
-        if request.client:
-            return request.client.host
-        return "unknown"
 
 
 def register_middleware(app) -> None:
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(RequestIdMiddleware)
+
+
+def _get_client_ip(scope: Scope) -> str:
+    headers = dict(scope.get("headers", []))
+    forwarded = headers.get(b"x-forwarded-for", b"").decode()
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    client = scope.get("client")
+    return client[0] if client else "unknown"

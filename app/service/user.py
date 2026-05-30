@@ -1,9 +1,12 @@
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
 from app.model.user import User
+from app.observability.logging import get_logger
 from app.repository.user import UserRepository
 from app.schemas.user import LoginRequest, LoginResponse, UserRequest, UserResponse
 from app.utils.auth import Authutils
+
+logger = get_logger(__name__)
 
 
 class UserService:
@@ -29,11 +32,14 @@ class UserService:
         if not Authutils.verify_password(db_user.password, dto.password):
             raise RetroException(ErrorCode.INVALID_CREDENTIALS)
 
-        access_token = Authutils.create_access_token(subject=db_user.email)
+        payload = {"sub": db_user.email, "user_id": db_user.id, "name": db_user.name}
+
+        access_token = Authutils.create_access_token(data=payload)
         return LoginResponse.model_validate({"access_token": access_token})
 
     async def get_user(self, email) -> UserResponse:
         db_user = await self.repo.get_user_by_email(email)
-        if db_user != None:
+        if db_user == None:
             raise RetroException(ErrorCode.USER_NOT_FOUND)
+        logger.info("Get user request")
         return UserResponse.model_validate(db_user)

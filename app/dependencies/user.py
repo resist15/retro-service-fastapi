@@ -1,12 +1,13 @@
 import jwt
-from alembic.util import status
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+from structlog.contextvars import get_contextvars
 
 from app.core.config import settings
 from app.db.session import get_db
 from app.model.user import User
+from app.observability.logging import bind_request_context
 from app.repository.user import UserRepository
 from app.service.user import UserService
 
@@ -24,7 +25,7 @@ def get_user_service(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-def get_current_user_email(
+async def get_current_user_email(
     token: str = Depends(oauth2_scheme),
 ) -> str:
     credentials_exception = HTTPException(
@@ -37,10 +38,13 @@ def get_current_user_email(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         email = payload.get("sub")
-        if email is None:
+        user_id = payload.get("user_id")
+        if email is None or user_id is None:
             raise credentials_exception
     except jwt.InvalidTokenError:
         raise credentials_exception
+    bind_request_context(email=email, user_id=user_id)
+    print("AFTER BIND:", get_contextvars())
     return email
 
 
