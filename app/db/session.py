@@ -26,7 +26,7 @@ class DatabaseSessionManager:
             pool_size=settings.DATABASE_POOL_SIZE,
             max_overflow=settings.DATABASE_MAX_OVERFLOW,
             pool_pre_ping=True,
-            echo=settings.DEBUG,
+            echo=settings.SQLALCHEMY_LOG,
         )
         self._sessionmaker = async_sessionmaker(
             bind=self._engine,

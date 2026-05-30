@@ -22,9 +22,9 @@ class Authutils:
             "iat": datetime.now(timezone.utc),
         }
         token = jwt.encode(
-            claims=payload,
+            payload=payload,
             key=settings.SECRET_KEY,
-            algorithm=settings.ENCODING_ALGORITHM,
+            algorithm=settings.ALGORITHM,
         )
         return token
 

@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.session import sessionmanager
 from app.exceptions.exception_handlers import register_exception_handlers
 from app.observability.logging import configure_logging, get_logger
+from app.observability.middleware import register_middleware
 from app.routers.private_router import private_router
 from app.routers.public_router import public_router
 
@@ -35,6 +36,7 @@ def create_application() -> FastAPI:
         openapi_url="/openapi.json" if settings.DEBUG else None,
         lifespan=lifespan,
     )
+    register_middleware(app=app)
 
     app.add_middleware(
         CORSMiddleware,

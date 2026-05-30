@@ -50,6 +50,15 @@ def configure_logging(log_level: str = "INFO", log_format: str = "json") -> None
     for name in ("uvicorn.access", "httpx", "httpcore"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
+    for name in ("sqlalchemy", "sqlalchemy.engine", "sqlalchemy.engine.Engine"):
+        sa_log = logging.getLogger(name)
+        sa_log.handlers.clear()
+        sa_log.propagate = True
+        sa_log.setLevel(logging.WARNING)
+
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
 
 def get_logger(name: str = __name__) -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)

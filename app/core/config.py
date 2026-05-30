@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     ALGORITHM: str
     LOG_LEVEL: str
     LOG_FORMAT: str
+    SQLALCHEMY_LOG: bool
 
 
 @lru_cache
