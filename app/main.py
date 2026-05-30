@@ -1,4 +1,3 @@
-import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -9,15 +8,13 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.core.config import settings
 from app.db.session import sessionmanager
 from app.exceptions.exception_handlers import register_exception_handlers
+from app.observability.logging import configure_logging, get_logger
 from app.routers.private_router import private_router
 from app.routers.public_router import public_router
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
-)
+configure_logging(log_level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @asynccontextmanager

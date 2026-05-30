@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -9,9 +7,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
+from app.observability.logging import get_logger
 from app.schemas.error_response import ErrorDetail, ErrorResponse
 
-logger = logging.getLogger("api.exceptions")
+logger = get_logger(__name__)
 
 
 def build_response(

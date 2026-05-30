@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXP_DAYS: int
     ALGORITHM: str
+    LOG_LEVEL: str
+    LOG_FORMAT: str
 
 
 @lru_cache
