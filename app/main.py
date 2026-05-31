@@ -10,6 +10,7 @@ from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from app.core.config import settings
 from app.db.session import sessionmanager
 from app.exceptions.exception_handlers import register_exception_handlers
+from app.middleware.security_headers import CSPHeadersMiddleware, HSTSHeadersMiddleware
 from app.observability.logging import configure_logging, get_logger
 from app.observability.middleware import register_middleware
 from app.observability.tracing import configure_tracing
@@ -46,6 +47,9 @@ def create_application() -> FastAPI:
     FastAPIInstrumentor.instrument_app(app=app)
     configure_tracing(settings=settings)
     register_middleware(app=app)
+
+    app.add_middleware(HSTSHeadersMiddleware)
+    app.add_middleware(CSPHeadersMiddleware)
 
     app.add_middleware(
         CORSMiddleware,
