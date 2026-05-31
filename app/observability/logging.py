@@ -87,6 +87,13 @@ def configure_logging(
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "httpx", "httpcore"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
+    for name in (
+        "urllib3",
+        "urllib3.connectionpool",
+        "opentelemetry",
+    ):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
 
 def get_logger(name: str = __name__) -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)
