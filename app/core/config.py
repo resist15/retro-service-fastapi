@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     LOG_LEVEL: str
     LOG_FORMAT: str
     SQLALCHEMY_LOG: bool
+    ENVIRONMENT: str
+    OTLP_ENDPOINT: str
 
 
 @lru_cache

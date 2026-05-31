@@ -2,7 +2,6 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from structlog.contextvars import get_contextvars
 
 from app.core.config import settings
 from app.db.session import get_db
@@ -44,7 +43,6 @@ async def get_current_user_email(
     except jwt.InvalidTokenError:
         raise credentials_exception
     bind_request_context(email=email, user_id=user_id)
-    print("AFTER BIND:", get_contextvars())
     return email
 
 

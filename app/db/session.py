@@ -1,6 +1,7 @@
 import contextlib
 from typing import AsyncGenerator, AsyncIterator
 
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -34,6 +35,7 @@ class DatabaseSessionManager:
             autocommit=False,
             autoflush=False,
         )
+        SQLAlchemyInstrumentor().instrument(engine=self._engine.sync_engine)
         try:
             async with self._engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
