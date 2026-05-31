@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.session import get_db
 from app.model.user import User
+from app.observability.decorators import observe
 from app.observability.logging import bind_request_context
 from app.repository.user import UserRepository
 from app.service.user import UserService
@@ -24,6 +25,7 @@ def get_user_service(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
+@observe("Security.verify_token")
 async def get_current_user_email(
     token: str = Depends(oauth2_scheme),
 ) -> str:

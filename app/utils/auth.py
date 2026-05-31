@@ -4,6 +4,7 @@ import jwt
 from pwdlib import PasswordHash
 
 from app.core.config import settings
+from app.observability.decorators import observe
 
 # pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -33,5 +34,6 @@ class Authutils:
         return pwd_context.hash(password)
 
     @staticmethod
+    @observe("AuthUtils.verify_password")
     def verify_password(db_password: str, input_password) -> bool:
         return pwd_context.verify(input_password, db_password)
