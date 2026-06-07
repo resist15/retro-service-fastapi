@@ -47,9 +47,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         details: list[ErrorDetail] = [
             ErrorDetail(
-                field=" → ".join(str(p) for p in error.get("loc", [])) or None,
+                # field=" → ".join(str(p) for p in error.get("loc", [])) or None,
                 message=error.get("msg", "Invalid value"),
-                code=error.get("type"),
+                # code=error.get("type"),
             )
             for error in exc.errors()
         ]

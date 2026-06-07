@@ -4,9 +4,9 @@ from pydantic import BaseModel, Field
 
 
 class ErrorDetail(BaseModel):
-    field: str | None = None
+    # field: str | None = None
     message: str
-    code: str | None = None
+    # code: str | None = None
 
 
 class ErrorResponse(BaseModel):
