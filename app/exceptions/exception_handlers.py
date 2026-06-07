@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.config import settings
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
 from app.observability.logging import get_logger
@@ -45,9 +46,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         details: list[ErrorDetail] = [
             ErrorDetail(
-                field=" → ".join(str(p) for p in error.get("loc", [])) or None,
+                # field=" → ".join(str(p) for p in error.get("loc", [])) or None,
                 message=error.get("msg", "Invalid value"),
-                code=error.get("type"),
+                # code=error.get("type"),
             )
             for error in exc.errors()
         ]
@@ -63,7 +64,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request, exc: StarletteHTTPException
     ) -> JSONResponse:
         response = build_response(
-            message=str(exc.detail) if exc.detail else "Starlet Exception",
+            message=str(exc.detail) if settings.DEBUG else "HTTP error occurred",
             status_code=exc.status_code,
             path=request.url.path,
         )
