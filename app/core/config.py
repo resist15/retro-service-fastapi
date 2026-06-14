@@ -32,7 +32,8 @@ class Settings(BaseSettings):
     DATABASE_MAX_OVERFLOW: int
 
     SECRET_KEY: str
-    ACCESS_TOKEN_EXP_DAYS: int
+    ACCESS_TOKEN_EXP_MINS: int
+    REFRESH_TOKEN_EXP_DAYS: int
     ALGORITHM: str
     LOG_LEVEL: str
     LOG_FORMAT: str

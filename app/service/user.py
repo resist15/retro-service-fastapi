@@ -1,10 +1,20 @@
+import uuid
+from datetime import datetime, timedelta, timezone
+
+from app.core.config import settings
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
 from app.model.user import User
 from app.observability.decorators import observe
 from app.observability.logging import get_logger
 from app.repository.user import UserRepository
-from app.schemas.user import LoginRequest, LoginResponse, UserRequest, UserResponse
+from app.schemas.user import (
+    LoginRequest,
+    LoginResponse,
+    RefreshRequest,
+    UserRequest,
+    UserResponse,
+)
 from app.utils.auth import Authutils
 
 logger = get_logger(__name__)
@@ -38,7 +48,23 @@ class UserService:
         payload = {"sub": db_user.email, "user_id": db_user.id, "name": db_user.name}
 
         access_token = Authutils.create_access_token(data=payload)
-        return LoginResponse.model_validate({"access_token": access_token})
+        refresh_token = str(uuid.uuid4())
+        expiration_time = datetime.now(timezone.utc) + timedelta(
+            days=settings.REFRESH_TOKEN_EXP_DAYS
+        )
+
+        token_list = await self.repo.get_refresh_tokens_user_id(db_user.id)
+
+        if len(token_list) >= 5:
+            await self.repo.revoke_oldest_token(db_user.id)
+
+        token = await self.repo.create_refresh_token(
+            refresh_token, db_user.id, expiration_time
+        )
+
+        return LoginResponse.model_validate(
+            {"access_token": access_token, "refresh_token": token.refresh_token}
+        )
 
     @observe("UserService.get_user")
     async def get_user(self, email) -> UserResponse:
@@ -47,3 +73,44 @@ class UserService:
             raise RetroException(ErrorCode.USER_NOT_FOUND)
         logger.info("Get user request")
         return UserResponse.model_validate(db_user)
+
+    async def refresh(self, dto: RefreshRequest):
+        token = await self.repo.get_refresh_token(dto.refresh_token)
+        if token == None:
+            raise RetroException(ErrorCode.INVALID_REFRESH_TOKEN)
+
+        present = datetime.now(timezone.utc)
+
+        if token.valid_till < present:
+            await self.repo.revoke_refresh_token(dto.refresh_token)
+            raise RetroException(ErrorCode.INVALID_REFRESH_TOKEN)
+
+        db_user = await self.repo.get_user_by_id(token.user_id)
+        if db_user == None:
+            raise RetroException(ErrorCode.USER_NOT_FOUND)
+
+        await self.repo.revoke_refresh_token(dto.refresh_token, db_user.id)
+        payload = {"sub": db_user.email, "user_id": db_user.id, "name": db_user.name}
+
+        access_token = Authutils.create_access_token(data=payload)
+        refresh_token = str(uuid.uuid4())
+        expiration_time = datetime.now(timezone.utc) + timedelta(
+            days=settings.REFRESH_TOKEN_EXP_DAYS
+        )
+
+        token_list = await self.repo.get_refresh_tokens_user_id(db_user.id)
+
+        if len(token_list) >= 5:
+            await self.repo.revoke_oldest_token(db_user.id)
+
+        token = await self.repo.create_refresh_token(
+            refresh_token, db_user.id, expiration_time
+        )
+
+        return LoginResponse.model_validate(
+            {"access_token": access_token, "refresh_token": token.refresh_token}
+        )
+        # check if refresh token is revoked the just raise exception
+        # if refresh token is valid then create new token expire that token
+        # return both new access and new refresh
+        # check refresh token duration

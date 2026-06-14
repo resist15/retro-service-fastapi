@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -56,5 +57,9 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     access_token: str
+    refresh_token: UUID
 
     model_config = {"from_attributes": True}
+
+class RefreshRequest(BaseModel):
+    refresh_token: UUID

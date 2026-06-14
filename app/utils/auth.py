@@ -15,7 +15,7 @@ class Authutils:
     @staticmethod
     def create_access_token(data: dict) -> str:
         expiration_time = datetime.now(timezone.utc) + timedelta(
-            days=settings.ACCESS_TOKEN_EXP_DAYS
+            minutes=settings.ACCESS_TOKEN_EXP_MINS
         )
         payload = {
             **data,
@@ -37,3 +37,7 @@ class Authutils:
     @observe("AuthUtils.verify_password")
     def verify_password(db_password: str, input_password) -> bool:
         return pwd_context.verify(input_password, db_password)
+
+    @staticmethod
+    def create_refresh_token():
+        pass

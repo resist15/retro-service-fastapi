@@ -15,3 +15,5 @@ class ErrorCode(Enum):
         status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
     USER_NOT_FOUND = ("User not found.", status.HTTP_404_NOT_FOUND)
+
+    INVALID_REFRESH_TOKEN = ("Invalid refresh token", status.HTTP_400_BAD_REQUEST)
