@@ -8,6 +8,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
 from app.core.config import settings
+from app.db.redis import redismanager
 from app.db.session import sessionmanager
 from app.exceptions.exception_handlers import register_exception_handlers
 from app.middleware.security_headers import CSPHeadersMiddleware, HSTSHeadersMiddleware
@@ -28,10 +29,14 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting up application")
     await sessionmanager.init(settings.DATABASE_URL)
+    await redismanager.init(
+        settings.REDIS_HOST, settings.REDIS_PORT, settings.REDIS_PASSWORD
+    )
     HTTPXClientInstrumentor().instrument()
     yield
     logger.info("Shutting down application")
     await sessionmanager.close()
+    await redismanager.close()
 
 
 def create_application() -> FastAPI:

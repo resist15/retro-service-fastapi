@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     DATABASE_POOL_SIZE: int
     DATABASE_MAX_OVERFLOW: int
 
+    # Redis Configs
+    REDIS_HOST: str
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: str
+
     SECRET_KEY: str
     ACCESS_TOKEN_EXP_MINS: int
     REFRESH_TOKEN_EXP_DAYS: int
