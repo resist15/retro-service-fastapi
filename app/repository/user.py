@@ -102,3 +102,22 @@ class UserRepository:
         await self.db.refresh(db_token)
         print(db_token.revoked)
         return db_token
+
+    async def revoke_all_by_user_id(self, user_id: int):
+        q = (
+            select(RefreshToken)
+            .where(RefreshToken.user_id == user_id)
+            .where(RefreshToken.revoked == False)
+        )
+        result = await self.db.execute(q)
+        refresh_token_list = result.scalars().all()
+        
+        if(refresh_token_list.count < 0):
+            return
+        
+        for token in refresh_token_list:
+            token.revoked = True
+
+        await self.db.flush()
+        await self.db.commit()
+        return

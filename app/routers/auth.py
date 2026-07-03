@@ -1,7 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 
-from app.dependencies.user import get_user_service
-from app.schemas.user import LoginRequest, LoginResponse, RefreshRequest, UserRequest, UserResponse
+from app.dependencies.user import get_current_user_email, get_user_service
+from app.schemas.user import (
+    LoginRequest,
+    LoginResponse,
+    RefreshRequest,
+    UserRequest,
+    UserResponse,
+)
 from app.service.user import UserService
 
 auth_router = APIRouter(tags=["Auth"], prefix="/auth")
@@ -20,6 +26,26 @@ async def login(
 ) -> LoginResponse:
     return await user_service.login_user(dto=dto)
 
+
 @auth_router.post("/refresh", response_model=LoginResponse)
-async def refresh(dto: RefreshRequest, user_service: UserService = Depends(get_user_service)):
+async def refresh(
+    dto: RefreshRequest, user_service: UserService = Depends(get_user_service)
+):
     return await user_service.refresh(dto=dto)
+
+
+@auth_router.post("/logout")
+async def logout(
+    dto: RefreshRequest,
+    user_service: UserService = Depends(get_user_service),
+    user=Depends(get_current_user_email),
+):
+    return await user_service.logout(id=user.id, dto=dto)
+
+
+@auth_router.post("/logout/all")
+async def logout(
+    user_service: UserService = Depends(get_user_service),
+    user=Depends(get_current_user_email),
+):
+    return await user_service.logout_all(user.id)

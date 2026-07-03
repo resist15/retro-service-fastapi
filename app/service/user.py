@@ -114,3 +114,12 @@ class UserService:
         # if refresh token is valid then create new token expire that token
         # return both new access and new refresh
         # check refresh token duration
+
+    async def logout_all(self, id: int):
+        # add redis integration and JTI token jwt token tracking for blacklisting and one auth middleeware checking in the redis for each call
+        await self.repo.revoke_all_by_user_id(id)
+        return {"detail": "Logged out all devices sucessfully"}
+
+    async def logout(self, dto: RefreshRequest, id: int):
+        await self.repo.revoke_refresh_token(dto.refresh_token, id)
+        return {"detail": "Logged out sucessfully"}

@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -28,7 +30,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 @observe("Security.verify_token")
 async def get_current_user_email(
     token: str = Depends(oauth2_scheme),
-) -> str:
+) -> SimpleNamespace:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -45,11 +47,11 @@ async def get_current_user_email(
     except jwt.InvalidTokenError:
         raise credentials_exception
     bind_request_context(email=email, user_id=user_id)
-    return email
+    return SimpleNamespace(id=user_id, email=email)
 
 
 async def get_current_user(
-    email: str = Depends(get_current_user_email),
+    user: SimpleNamespace = Depends(get_current_user_email),
     repo: UserRepository = Depends(get_user_repo),
 ) -> User:
     credentials_exception = HTTPException(
@@ -57,7 +59,7 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    db_user = await repo.get_user_by_email(email)
+    db_user = await repo.get_user_by_email(user.email)
     if db_user is None:
         raise credentials_exception
     return db_user
