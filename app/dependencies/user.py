@@ -3,9 +3,11 @@ from types import SimpleNamespace
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.db.redis import get_redis
 from app.db.session import get_db
 from app.model.user import User
 from app.observability.decorators import observe
@@ -30,6 +32,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 @observe("Security.verify_token")
 async def get_current_user_email(
     token: str = Depends(oauth2_scheme),
+    redis: Redis = Depends(get_redis)
 ) -> SimpleNamespace:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,8 +49,14 @@ async def get_current_user_email(
             raise credentials_exception
     except jwt.InvalidTokenError:
         raise credentials_exception
+
+    jti = payload.get("jti")
+
+    if await redis.exists(f"blacklist:{jti}"):
+        raise credentials_exception
+
     bind_request_context(email=email, user_id=user_id)
-    return SimpleNamespace(id=user_id, email=email)
+    return SimpleNamespace(id=user_id, email=email, claims=payload)
 
 
 async def get_current_user(

@@ -35,5 +35,5 @@ class RefreshToken(Base, IDMixin, CreatedAtMixin):
         nullable=False,
     )
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
-
+    jti: Mapped[UUID] = mapped_column(Uuid, nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)

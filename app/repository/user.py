@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from uuid import UUID
 
@@ -36,12 +37,13 @@ class UserRepository:
         return refresh_token
 
     async def create_refresh_token(
-        self, token: UUID, user_id: int, expiration_time: datetime
+        self, token: UUID, user_id: int, expiration_time: datetime, access_jti: uuid
     ) -> RefreshToken:
         data = {
             "user_id": user_id,
             "refresh_token": token,
             "valid_till": expiration_time,
+            "jti": access_jti,
         }
         new_token = RefreshToken(**data)
         self.db.add(new_token)
@@ -100,7 +102,6 @@ class UserRepository:
         await self.db.flush()
         await self.db.commit()
         await self.db.refresh(db_token)
-        print(db_token.revoked)
         return db_token
 
     async def revoke_all_by_user_id(self, user_id: int):
@@ -111,13 +112,14 @@ class UserRepository:
         )
         result = await self.db.execute(q)
         refresh_token_list = result.scalars().all()
-        
-        if(refresh_token_list.count < 0):
+
+        if refresh_token_list.count < 0:
             return
-        
+
         for token in refresh_token_list:
             token.revoked = True
 
         await self.db.flush()
         await self.db.commit()
-        return
+        await self.db.refresh(refresh_token_list)
+        return refresh_token_list
