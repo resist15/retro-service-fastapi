@@ -56,18 +56,16 @@ class UserService:
 
         access_token = Authutils.create_access_token(data=payload)
         refresh_token = str(uuid.uuid4())
-        expiration_time = datetime.now(timezone.utc) + timedelta(
-            days=settings.REFRESH_TOKEN_EXP_DAYS
-        )
-
         token_list = await self.repo.get_refresh_tokens_user_id(db_user.id)
 
         if len(token_list) >= 5:
             old_token = await self.repo.revoke_oldest_token(db_user.id)
-            expiration_time = datetime.now(timezone.utc) + timedelta(
-                minutes=settings.ACCESS_TOKEN_EXP_MINS
-            )
+            expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
             await redis.set(f"blacklist:{old_token.jti}", "1", ex=expiration_time)
+
+        expiration_time = datetime.now(timezone.utc) + timedelta(
+            days=settings.REFRESH_TOKEN_EXP_DAYS
+        )
 
         token = await self.repo.create_refresh_token(
             refresh_token, db_user.id, expiration_time, jti
@@ -105,18 +103,16 @@ class UserService:
 
         access_token = Authutils.create_access_token(data=payload)
         refresh_token = str(uuid.uuid4())
-        expiration_time = datetime.now(timezone.utc) + timedelta(
-            days=settings.ACCESS_TOKEN_EXP_MINS
-        )
-
         token_list = await self.repo.get_refresh_tokens_user_id(db_user.id)
 
         if len(token_list) >= 5:
             old_token = await self.repo.revoke_oldest_token(db_user.id)
-            expiration_time = datetime.now(timezone.utc) + timedelta(
-                minutes=settings.ACCESS_TOKEN_EXP_MINS
-            )
+            expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
             await redis.set(f"blacklist:{old_token.jti}", "1", ex=expiration_time)
+
+        expiration_time = datetime.now(timezone.utc) + timedelta(
+            days=settings.REFRESH_TOKEN_EXP_DAYS
+        )
 
         token = await self.repo.create_refresh_token(
             refresh_token, db_user.id, expiration_time
@@ -133,9 +129,7 @@ class UserService:
     async def logout_all(self, id: int, redis: Redis):
         # add redis integration and JTI token jwt token tracking for blacklisting and one auth middleeware checking in the redis for each call
         refresh_tokens = await self.repo.revoke_all_by_user_id(id)
-        expiration_time = datetime.now(timezone.utc) + timedelta(
-            days=settings.ACCESS_TOKEN_EXP_MINS
-        )
+        expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
         for token in refresh_tokens:
             await redis.set(f"blacklist:{token.jti}", "1", ex=expiration_time)
 
@@ -143,8 +137,8 @@ class UserService:
 
     async def logout(self, dto: RefreshRequest, id: int, redis: Redis):
         old_token = await self.repo.revoke_refresh_token(dto.refresh_token, id)
-        expiration_time = datetime.now(timezone.utc) + timedelta(
-            days=settings.ACCESS_TOKEN_EXP_MINS
-        )
+        if old_token == None:
+            raise RetroException(ErrorCode.INVALID_REFRESH_TOKEN)
+        expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
         await redis.set(f"blacklist:{old_token.jti}", "1", ex=expiration_time)
         return {"detail": "Logged out sucessfully"}

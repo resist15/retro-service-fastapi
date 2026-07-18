@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.model.user import RefreshToken, User
@@ -104,22 +104,16 @@ class UserRepository:
         await self.db.refresh(db_token)
         return db_token
 
-    async def revoke_all_by_user_id(self, user_id: int):
-        q = (
-            select(RefreshToken)
-            .where(RefreshToken.user_id == user_id)
-            .where(RefreshToken.revoked == False)
+    async def revoke_all_by_user_id(self, user_id: int) -> list[RefreshToken]:
+        result = await self.db.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked.is_(False),
+            )
+            .values(revoked=True)
+            .returning(RefreshToken)
         )
-        result = await self.db.execute(q)
-        refresh_token_list = result.scalars().all()
 
-        if refresh_token_list.count < 0:
-            return
-
-        for token in refresh_token_list:
-            token.revoked = True
-
-        await self.db.flush()
         await self.db.commit()
-        await self.db.refresh(refresh_token_list)
-        return refresh_token_list
+        return result.scalars().all()
