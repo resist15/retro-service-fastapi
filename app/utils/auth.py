@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from pwdlib import PasswordHash
@@ -14,13 +14,13 @@ pwd_context = PasswordHash.recommended()
 class Authutils:
     @staticmethod
     def create_access_token(data: dict) -> str:
-        expiration_time = datetime.now(timezone.utc) + timedelta(
+        expiration_time = datetime.now(UTC) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXP_MINS
         )
         payload = {
             **data,
             "exp": expiration_time,
-            "iat": datetime.now(timezone.utc),
+            "iat": datetime.now(UTC),
         }
         token = jwt.encode(
             payload=payload,
@@ -37,7 +37,3 @@ class Authutils:
     @observe("AuthUtils.verify_password")
     def verify_password(db_password: str, input_password) -> bool:
         return pwd_context.verify(input_password, db_password)
-
-    @staticmethod
-    def create_refresh_token():
-        pass

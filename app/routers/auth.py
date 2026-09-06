@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from redis.asyncio import Redis
 
 from app.db.redis import get_redis
@@ -47,7 +47,9 @@ async def logout(
     user=Depends(get_current_user_email),
     redis: Redis = Depends(get_redis),
 ):
-    return await user_service.logout(id=user.id, dto=dto, redis=redis)
+    return await user_service.logout(
+        id=user.id, dto=dto, redis=redis, jti=user.auth_token.get("jti")
+    )
 
 
 @auth_router.post("/logout/all")

@@ -1,3 +1,4 @@
+from typing import Sequence
 import uuid
 from datetime import datetime
 from uuid import UUID
@@ -18,32 +19,32 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
-    async def get_user_by_email(self, email: str) -> User:
+    async def get_user_by_email(self, email: str) -> User | None:
         q = select(User).where(User.email == email)
         result = await self.db.execute(q)
         user = result.scalar_one_or_none()
         return user
 
-    async def get_user_by_id(self, id: int) -> User:
+    async def get_user_by_id(self, id: int) -> User | None:
         q = select(User).where(User.id == id)
         result = await self.db.execute(q)
         user = result.scalar_one_or_none()
         return user
 
-    async def get_refresh_token(self, token: UUID) -> RefreshToken:
+    async def get_refresh_token(self, token: UUID) -> RefreshToken | None:
         q = select(RefreshToken).where(RefreshToken.refresh_token == token)
         result = await self.db.execute(q)
         refresh_token = result.scalar_one_or_none()
         return refresh_token
 
     async def create_refresh_token(
-        self, token: UUID, user_id: int, expiration_time: datetime, access_jti: uuid
+        self, token: UUID, user_id: int, expiration_time: datetime, refresh_jti: UUID 
     ) -> RefreshToken:
         data = {
             "user_id": user_id,
             "refresh_token": token,
             "valid_till": expiration_time,
-            "jti": access_jti,
+            "jti": refresh_jti,
         }
         new_token = RefreshToken(**data)
         self.db.add(new_token)
@@ -51,7 +52,7 @@ class UserRepository:
         await self.db.refresh(new_token)
         return new_token
 
-    async def revoke_oldest_token(self, user_id: int) -> RefreshToken:
+    async def revoke_oldest_token(self, user_id: int) -> RefreshToken | None:
         q1 = (
             select(RefreshToken)
             .where(RefreshToken.user_id == user_id)
@@ -69,7 +70,7 @@ class UserRepository:
         await self.db.refresh(old_token)
         return old_token
 
-    async def get_refresh_tokens_user_id(self, user_id: int) -> list[RefreshToken]:
+    async def get_refresh_tokens_user_id(self, user_id: int) -> Sequence[RefreshToken]:
         q = (
             select(RefreshToken)
             .where(RefreshToken.user_id == user_id)

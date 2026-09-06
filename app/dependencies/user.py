@@ -31,8 +31,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 @observe("Security.verify_token")
 async def get_current_user_email(
-    token: str = Depends(oauth2_scheme),
-    redis: Redis = Depends(get_redis)
+    token: str = Depends(oauth2_scheme), redis: Redis = Depends(get_redis)
 ) -> SimpleNamespace:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -52,11 +51,27 @@ async def get_current_user_email(
 
     jti = payload.get("jti")
 
-    if await redis.exists(f"blacklist:{jti}"):
+    if await redis.exists(f"retro-service:{user_id}:access-blacklist:{jti}"):
+        raise credentials_exception
+
+    key = f"retro-service:{user_id}:token-version"
+
+    version = payload.get("version")
+    try:
+        token_version = int(version)
+    except TypeError, ValueError:
+        raise credentials_exception
+
+    version_from_redis = await redis.get(key)
+
+    if version_from_redis is None:
+        raise credentials_exception
+
+    if token_version != int(version_from_redis):
         raise credentials_exception
 
     bind_request_context(email=email, user_id=user_id)
-    return SimpleNamespace(id=user_id, email=email, claims=payload)
+    return SimpleNamespace(id=user_id, email=email, auth_token=payload)
 
 
 async def get_current_user(

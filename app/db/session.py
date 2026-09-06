@@ -1,5 +1,5 @@
 import contextlib
-from typing import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from sqlalchemy import text
@@ -69,6 +69,6 @@ class DatabaseSessionManager:
 sessionmanager = DatabaseSessionManager()
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     async with sessionmanager.session() as session:
         yield session
