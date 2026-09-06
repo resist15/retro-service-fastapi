@@ -5,12 +5,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.utils.enums import ProviderType
+
 
 class UserRequest(BaseModel):
     first_name: Annotated[
         str, Field(min_length=2, max_length=50, description="User first name")
     ]
-    
+
     last_name: Annotated[
         str, Field(min_length=2, max_length=50, description="User last name")
     ]
@@ -55,6 +57,13 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class OAuthLoginRequest(BaseModel):
+    first_name: str
+    last_name: str
+    provider_type: ProviderType
+    email: EmailStr
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -65,6 +74,7 @@ class LoginResponse(BaseModel):
     refresh_token: UUID
 
     model_config = {"from_attributes": True}
+
 
 class RefreshRequest(BaseModel):
     refresh_token: UUID

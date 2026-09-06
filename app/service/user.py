@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from fastapi.responses import RedirectResponse
 from redis.asyncio import Redis
 
 from app.core.config import settings
@@ -13,6 +14,7 @@ from app.repository.user import UserRepository
 from app.schemas.user import (
     LoginRequest,
     LoginResponse,
+    OAuthLoginRequest,
     RefreshRequest,
     UserRequest,
     UserResponse,
@@ -39,6 +41,87 @@ class UserService:
         user: User = User(**user_data)
         await self.repo.create_user(user)
         return UserResponse.model_validate(user)
+
+    @observe("UserService.oauth_login")
+    async def oauth_login_user(self, dto: OAuthLoginRequest, redis: Redis):
+        db_user: User | None = await self.repo.get_user_by_email(dto.email)
+        if db_user is None:
+            user_data = dto.model_dump()
+            user_data["password"] = ""
+            db_user: User = User(**user_data)
+            await self.repo.create_user(db_user)
+
+        access_jti = uuid.uuid4()
+
+        version = await redis.get(f"retro-service:{db_user.id}:token-version")
+
+        if version is None:
+            await redis.set(f"retro-service:{db_user.id}:token-version", 1)
+            version = 1
+        else:
+            version = int(version)
+
+        name = db_user.first_name + " " + db_user.last_name
+
+        access_payload = {
+            "user_id": db_user.id,
+            "name": name,
+            "sub": db_user.email,
+            "jti": str(access_jti),
+            "version": version,
+        }
+
+        access_token = Authutils.create_access_token(data=access_payload)
+
+        refresh_token = uuid.uuid4()
+        refresh_jti = uuid.uuid4()
+
+        token_list = await self.repo.get_refresh_tokens_user_id(db_user.id)
+
+        if len(token_list) >= 5:
+            old_token = await self.repo.revoke_oldest_token(db_user.id)
+            if old_token is None:
+                raise RetroException(ErrorCode.INTERNAL_SERVER_ERROR)
+
+        expiration_time = datetime.now(UTC) + timedelta(
+            days=settings.REFRESH_TOKEN_EXP_DAYS
+        )
+
+        token = await self.repo.create_refresh_token(
+            refresh_token, db_user.id, expiration_time, refresh_jti
+        )
+
+        response = RedirectResponse(url=settings.FRONTEND_URL + "/dashboard")
+
+        refresh_expiration_time = datetime.now(UTC) + timedelta(
+            days=settings.REFRESH_TOKEN_EXP_DAYS
+        )
+        access_expiration_time = datetime.now(UTC) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXP_MINS
+        )
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            expires=refresh_expiration_time
+        )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(token.refresh_token),
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            expires=access_expiration_time
+        )
+
+        return response
+
+        # return LoginResponse.model_validate(
+        #     {"access_token": access_token, "refresh_token": token.refresh_token}
+        # )
 
     @observe("UserService.login_user")
     async def login_user(self, dto: LoginRequest, redis: Redis) -> LoginResponse:
