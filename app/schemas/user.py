@@ -7,11 +7,15 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class UserRequest(BaseModel):
-    name: Annotated[
-        str, Field(min_length=2, max_length=50, description="User full name")
+    first_name: Annotated[
+        str, Field(min_length=2, max_length=50, description="User first name")
+    ]
+    
+    last_name: Annotated[
+        str, Field(min_length=2, max_length=50, description="User last name")
     ]
 
-    @field_validator("name")
+    @field_validator("first_name", "last_name")
     @classmethod
     def validate_name(cls, value: str):
         if not value.replace(" ", "").isalpha():
@@ -42,7 +46,8 @@ class UserRequest(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    name: str
+    first_name: str
+    last_name: str
     email: str
     created_at: datetime
     updated_at: datetime

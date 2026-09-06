@@ -16,7 +16,7 @@ oauth.register(
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
 )
 
-google_router = APIRouter(prefix="/auth/google")
+google_router = APIRouter(tags=["Google"], prefix="/auth/google")
 
 
 @google_router.get("/login")

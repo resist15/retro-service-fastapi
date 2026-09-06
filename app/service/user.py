@@ -18,6 +18,7 @@ from app.schemas.user import (
     UserResponse,
 )
 from app.utils.auth import Authutils
+from app.utils.enums import ProviderType
 
 logger = get_logger(__name__)
 
@@ -33,6 +34,7 @@ class UserService:
             raise RetroException(ErrorCode.USER_ALREADY_EXISTS)
         user_data = dto.model_dump()
         user_data["password"] = Authutils.hash_password(user_data["password"])
+        user_data["provider_type"] = ProviderType.NORMAL
 
         user: User = User(**user_data)
         await self.repo.create_user(user)
@@ -57,12 +59,14 @@ class UserService:
         else:
             version = int(version)
 
+        name = db_user.first_name + " " + db_user.last_name
+
         access_payload = {
-            "sub": db_user.email,
             "user_id": db_user.id,
-            "name": db_user.name,
-            "version": version,
+            "name": name,
+            "sub": db_user.email,
             "jti": str(access_jti),
+            "version": version,
         }
 
         access_token = Authutils.create_access_token(data=access_payload)
@@ -129,12 +133,14 @@ class UserService:
 
         access_jti = uuid.uuid4()
 
+        name = db_user.first_name + " " + db_user.last_name
+
         access_payload = {
-            "sub": db_user.email,
             "user_id": db_user.id,
-            "name": db_user.name,
-            "version": version,
+            "name": name,
+            "sub": db_user.email,
             "jti": str(access_jti),
+            "version": version,
         }
 
         access_token = Authutils.create_access_token(data=access_payload)
@@ -159,13 +165,8 @@ class UserService:
         return LoginResponse.model_validate(
             {"access_token": access_token, "refresh_token": token.refresh_token}
         )
-        # check if refresh token is revoked the just raise exception
-        # if refresh token is valid then create new token expire that token
-        # return both new access and new refresh
-        # check refresh token duration
 
     async def logout_all(self, id: int, redis: Redis):
-        # add redis integration and JTI token jwt token tracking for blacklisting and one auth middleeware checking in the redis for each call
         await self.repo.revoke_all_by_user_id(id)
         await redis.incr(f"retro-service:{id}:token-version")
         return {"detail": "Logged out all devices sucessfully"}
