@@ -5,6 +5,7 @@ from sqlalchemy import Boolean, DateTime, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.model.base import Base, CreatedAtMixin, IDMixin, TimestampMixin
+from app.utils.enums import ProviderType
 
 
 class User(Base, IDMixin, TimestampMixin):
@@ -15,9 +16,11 @@ class User(Base, IDMixin, TimestampMixin):
         nullable=False,
     )
 
-    name: Mapped[str] = mapped_column(
-        String(255),
-    )
+    provider_type: Mapped[ProviderType] = mapped_column(nullable=False)
+
+    first_name: Mapped[str] = mapped_column(String(255))
+
+    last_name: Mapped[str] = mapped_column(String(255))
 
     password: Mapped[str] = mapped_column(
         String(255),
