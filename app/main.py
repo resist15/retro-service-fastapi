@@ -1,11 +1,12 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
 from app.db.redis import redismanager
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("Starting up application")
     await sessionmanager.init(settings.DATABASE_URL)
     await redismanager.init(
@@ -48,6 +49,7 @@ def create_application() -> FastAPI:
         openapi_url="/openapi.json" if settings.DEBUG else None,
         lifespan=lifespan,
     )
+    app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
     FastAPIInstrumentor.instrument_app(app=app)
     configure_tracing(settings=settings)

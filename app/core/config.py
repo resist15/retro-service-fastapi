@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str
     OTLP_ENDPOINT: str
 
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+
 
 @lru_cache
 def get_settings() -> Settings:
