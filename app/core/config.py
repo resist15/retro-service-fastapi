@@ -51,6 +51,8 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str
 
+    MUSIC_DIR: str
+
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()

@@ -43,7 +43,6 @@ class DatabaseSessionManager:
             logger.info("Database connected successfully")
         except Exception as e:
             logger.error("Database connection failed")
-            logger.exception(e)
             raise
 
     async def close(self) -> None:

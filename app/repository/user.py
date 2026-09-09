@@ -1,6 +1,6 @@
-from typing import Sequence
 import uuid
 from datetime import datetime
+from typing import Sequence
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -38,7 +38,7 @@ class UserRepository:
         return refresh_token
 
     async def create_refresh_token(
-        self, token: UUID, user_id: int, expiration_time: datetime, refresh_jti: UUID 
+        self, token: UUID, user_id: int, expiration_time: datetime, refresh_jti: UUID
     ) -> RefreshToken:
         data = {
             "user_id": user_id,

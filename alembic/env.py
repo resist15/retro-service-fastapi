@@ -10,6 +10,8 @@ from app.core.config import settings
 from app.model.base import Base
 from app.model.user import User
 
+from app.model.music import Album, Artist, Track
+
 config = context.config
 config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL).replace("%", "%%"))
 

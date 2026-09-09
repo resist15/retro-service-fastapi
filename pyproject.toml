@@ -10,6 +10,7 @@ dependencies = [
     "authlib>=1.8.0",
     "fastapi[standard]>=0.136.0",
     "httpx2>=2.12.0",
+    "mutagen>=1.48.1",
     "opentelemetry-api>=1.42.1",
     "opentelemetry-exporter-otlp>=1.42.1",
     "opentelemetry-instrumentation-fastapi>=0.63b1",
