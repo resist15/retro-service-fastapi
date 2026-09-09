@@ -2,6 +2,7 @@ import contextlib
 from collections.abc import AsyncGenerator, AsyncIterator
 
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from pydantic import PostgresDsn
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -21,7 +22,7 @@ class DatabaseSessionManager:
         self._engine: AsyncEngine | None = None
         self._sessionmaker: async_sessionmaker[AsyncSession] | None = None
 
-    async def init(self, dsn: str) -> None:
+    async def init(self, dsn: PostgresDsn) -> None:
         self._engine = create_async_engine(
             str(dsn),
             pool_size=settings.DATABASE_POOL_SIZE,
