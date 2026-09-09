@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPX2ClientInstrumentor
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     await redismanager.init(
         settings.REDIS_HOST, settings.REDIS_PORT, settings.REDIS_PASSWORD
     )
-    HTTPXClientInstrumentor().instrument()
+    HTTPX2ClientInstrumentor().instrument()
     yield
     logger.info("Shutting down application")
     await sessionmanager.close()
