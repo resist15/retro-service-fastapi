@@ -1,4 +1,5 @@
 import datetime
+from datetime import date
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -63,3 +64,49 @@ class MusicFile(BaseModel):
     file_extension: str
 
     raw_metadata: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class TrackResponse(BaseModel):
+    id: int
+    file_extension: str
+    duration_secs: float
+    bitrate: int | None
+    release_date: date | None
+    sample_rate: int | None
+    title: str
+    album_id: int | None
+    album: str | None
+    artists: list[str]
+
+    # {
+    #     "file_extension": ".flac",
+    #     "duration_secs": 279.82666666666665,
+    #     "bitrate": 976000,
+    #     "id": 1,
+    #     "release_date": "2010-04-09",
+    #     "sample_rate": 44100,
+    #     "title": "Tere Liye",
+    #     "album_id": 1,
+    #     "album": {
+    #         "id": 1,
+    #         "name": "Prince (Original Motion Picture Soundtrack)"
+    #     },
+    #     "artists": [
+    #         {
+    #             "id": 1,
+    #             "name": "Atif Aslam"
+    #         },
+    #         {
+    #             "id": 2,
+    #             "name": "Shreya Ghoshal"
+    #         },
+    #         {
+    #             "id": 3,
+    #             "name": "Sachin Gupta"
+    #         },
+    #         {
+    #             "id": 4,
+    #             "name": "Sameer Anjaan"
+    #         }
+    #     ]
+    # },
