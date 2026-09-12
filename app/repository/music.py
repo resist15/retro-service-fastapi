@@ -34,3 +34,8 @@ class MusicRepository:
         result = await self.db.execute(q)
 
         return list(result.scalars().all())
+
+    async def get_track(self, track_id) -> Track | None:
+        query = select(Track).where(Track.id == track_id)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()

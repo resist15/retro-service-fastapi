@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 
 from app.dependencies.music import get_music_service
 from app.exceptions.custom_exceptions import RetroException
@@ -31,3 +31,12 @@ async def get_scan_status() -> ScanState:
 @music_router.get("/tracks", response_model=list[TrackResponse])
 async def get_tracks(music_service: MusicService = Depends(get_music_service)):
     return await music_service.get_tracks()
+
+
+@music_router.get("/stream/{music_id}")
+async def stream_music(
+    music_id: int,
+    request: Request,
+    music_service: MusicService = Depends(get_music_service),
+):
+    return await music_service.stream_music(music_id, request)

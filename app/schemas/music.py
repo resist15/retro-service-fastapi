@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import datetime
 from datetime import date
 from enum import StrEnum
@@ -78,6 +79,14 @@ class TrackResponse(BaseModel):
     album: str | None
     artists: list[str]
 
+@dataclass(frozen=True)
+class ByteRange:
+    start: int
+    end: int
+
+
+class InvalidRange(Exception):
+    pass
     # {
     #     "file_extension": ".flac",
     #     "duration_secs": 279.82666666666665,
