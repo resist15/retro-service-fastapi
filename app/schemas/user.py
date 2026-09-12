@@ -75,6 +75,9 @@ class LoginResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-
+class LoginResponseMessage(BaseModel):
+    detail: str
+    model_config = {"from_attributes": True}
+    
 class RefreshRequest(BaseModel):
     refresh_token: UUID

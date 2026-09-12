@@ -1,19 +1,20 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from fastapi import Response
 from fastapi.responses import RedirectResponse
 from redis.asyncio import Redis
 
 from app.core.config import settings
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
-from app.model.user import User
+from app.model.user import RefreshToken, User
 from app.observability.decorators import observe
 from app.observability.logging import get_logger
 from app.repository.user import UserRepository
 from app.schemas.user import (
     LoginRequest,
-    LoginResponse,
+    LoginResponseMessage,
     OAuthLoginRequest,
     RefreshRequest,
     UserRequest,
@@ -91,7 +92,7 @@ class UserService:
             refresh_token, db_user.id, expiration_time, refresh_jti
         )
 
-        response = RedirectResponse(url=settings.FRONTEND_URL + "/dashboard")
+        response = RedirectResponse(url=settings.FRONTEND_URL + "/home")
 
         refresh_expiration_time = datetime.now(UTC) + timedelta(
             days=settings.REFRESH_TOKEN_EXP_DAYS
@@ -105,7 +106,7 @@ class UserService:
             httponly=True,
             secure=True,
             samesite="lax",
-            expires=refresh_expiration_time
+            expires=refresh_expiration_time,
         )
 
         response.set_cookie(
@@ -114,7 +115,8 @@ class UserService:
             httponly=True,
             secure=True,
             samesite="lax",
-            expires=access_expiration_time
+            path="/auth",
+            expires=access_expiration_time,
         )
 
         return response
@@ -124,7 +126,9 @@ class UserService:
         # )
 
     @observe("UserService.login_user")
-    async def login_user(self, dto: LoginRequest, redis: Redis) -> LoginResponse:
+    async def login_user(
+        self, response: Response, dto: LoginRequest, redis: Redis
+    ) -> LoginResponseMessage:
         db_user = await self.repo.get_user_by_email(dto.email)
         if db_user is None:
             raise RetroException(ErrorCode.INVALID_CREDENTIALS)
@@ -172,9 +176,35 @@ class UserService:
             refresh_token, db_user.id, expiration_time, refresh_jti
         )
 
-        return LoginResponse.model_validate(
-            {"access_token": access_token, "refresh_token": token.refresh_token}
+        refresh_expiration_time = datetime.now(UTC) + timedelta(
+            days=settings.REFRESH_TOKEN_EXP_DAYS
         )
+        access_expiration_time = datetime.now(UTC) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXP_MINS
+        )
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            expires=refresh_expiration_time,
+        )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(token.refresh_token),
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/auth",
+            expires=access_expiration_time,
+        )
+
+        return LoginResponseMessage(detail="Login successful")
+        # return LoginResponse.model_validate(
+        #     {"access_token": access_token, "refresh_token": token.refresh_token}
+        # )
 
     @observe("UserService.get_user")
     async def get_user(self, email) -> UserResponse:
@@ -184,8 +214,12 @@ class UserService:
         logger.info("Get user request")
         return UserResponse.model_validate(db_user)
 
-    async def refresh(self, dto: RefreshRequest, redis: Redis):
-        token = await self.repo.get_refresh_token(dto.refresh_token)
+    async def refresh(self, response: Response, dto: RefreshRequest, redis: Redis):
+
+        token: RefreshToken | None = await self.repo.get_refresh_token(
+            dto.refresh_token
+        )
+
         if token is None:
             raise RetroException(ErrorCode.INVALID_REFRESH_TOKEN)
 
@@ -245,21 +279,65 @@ class UserService:
             refresh_token, db_user.id, expiration_time, refresh_jti
         )
 
-        return LoginResponse.model_validate(
-            {"access_token": access_token, "refresh_token": token.refresh_token}
+        refresh_expiration_time = datetime.now(UTC) + timedelta(
+            days=settings.REFRESH_TOKEN_EXP_DAYS
+        )
+        access_expiration_time = datetime.now(UTC) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXP_MINS
+        )
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            expires=refresh_expiration_time,
         )
 
-    async def logout_all(self, id: int, redis: Redis):
+        response.set_cookie(
+            key="refresh_token",
+            value=str(token.refresh_token),
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/auth",
+            expires=access_expiration_time,
+        )
+
+        return LoginResponseMessage(detail="Refreshed Successfully")
+        # return LoginResponse.model_validate(
+        #     {"access_token": access_token, "refresh_token": token.refresh_token}
+        # )
+
+    async def logout_all(self, id: int, redis: Redis, response: Response):
         await self.repo.revoke_all_by_user_id(id)
         await redis.incr(f"retro-service:{id}:token-version")
+        response.delete_cookie(
+            key="refresh_token",
+            path="/auth",
+        )
+        response.delete_cookie(
+            key="access_token",
+            path="/",
+        )
         return {"detail": "Logged out all devices sucessfully"}
 
-    async def logout(self, dto: RefreshRequest, id: int, redis: Redis, jti: str):
+    async def logout(
+        self, dto: RefreshRequest, id: int, redis: Redis, jti: str, response: Response
+    ):
         old_token = await self.repo.revoke_refresh_token(dto.refresh_token, id)
         if old_token is None:
             raise RetroException(ErrorCode.INVALID_REFRESH_TOKEN)
         expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
         await redis.set(
             f"retro-service:{id}:access-blacklist:{jti}", "1", ex=expiration_time
+        )
+        response.delete_cookie(
+            key="refresh_token",
+            path="/auth",
+        )
+        response.delete_cookie(
+            key="access_token",
+            path="/",
         )
         return {"detail": "Logged out sucessfully"}
