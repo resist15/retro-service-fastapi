@@ -1,11 +1,12 @@
 import datetime
+import hashlib
 from pathlib import Path
-from sqlite3 import IntegrityError
 from typing import Any
 
 from mutagen import File
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.model.music
@@ -13,6 +14,7 @@ from app.core.config import settings
 from app.db.session import sessionmanager
 from app.model.music import Album, Artist, Track, track_artists, track_composers
 from app.schemas.music import MusicFile, ScanStatus, scan_state
+from app.utils.music import extract_embedded_art
 
 
 async def insert_music_file(
@@ -22,7 +24,6 @@ async def insert_music_file(
 
     async def get_or_create_artist(name: str) -> Artist:
         result = await session.execute(select(Artist).where(Artist.name == name))
-
         artist = result.scalar_one_or_none()
 
         if artist is None:
@@ -40,7 +41,6 @@ async def insert_music_file(
 
     if music.album:
         result = await session.execute(select(Album).where(Album.name == music.album))
-
         album = result.scalar_one_or_none()
 
         if album is None:
@@ -48,7 +48,6 @@ async def insert_music_file(
                 name=music.album,
                 artists=album_artists,
             )
-
             session.add(album)
             await session.flush()
 
@@ -80,37 +79,66 @@ async def insert_music_file(
         "file_name": music.file_name,
         "file_extension": music.file_extension,
         "raw_metadata": music.raw_metadata,
+        "file_mtime": music.file_mtime,
     }
 
+    art = extract_embedded_art(Path(music.file_path))
+    if art:
+        data, mime = art
+        ext = ".png" if mime == "image/png" else ".jpg"
+        digest = hashlib.sha1(data).hexdigest()
+
+        cover_dir = Path(settings.COVERS_DIR)
+        cover_dir.mkdir(parents=True, exist_ok=True)
+        cover_file = cover_dir / f"{digest}{ext}"
+
+        if not cover_file.exists():
+            cover_file.write_bytes(data)
+
+        track_data["cover_path"] = str(cover_file)
+
     stmt = pg_insert(Track).values(**track_data)
-    stmt = stmt.on_conflict_do_nothing(index_elements=["file_path"])
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["file_path"],
+        set_=track_data,
+    )
     result = await session.execute(stmt.returning(Track.id))
-
-    track_id = result.scalar_one_or_none()
-
-    if track_id is None:
-        return False
+    track_id = result.scalar_one()
 
     await session.execute(
-        pg_insert(track_artists).values(
-            [{"track_id": track_id, "artist_id": artist.id} for artist in artists]
-        )
+        delete(track_artists).where(track_artists.c.track_id == track_id)
     )
-
     await session.execute(
-        pg_insert(track_composers).values(
-            [{"track_id": track_id, "artist_id": composer.id} for composer in composers]
-        )
+        delete(track_composers).where(track_composers.c.track_id == track_id)
     )
 
-    if album:
+    if artists:
         await session.execute(
-            pg_insert(app.model.music.album_artists).values(
+            pg_insert(track_artists).values(
+                [{"track_id": track_id, "artist_id": artist.id} for artist in artists]
+            )
+        )
+
+    if composers:
+        await session.execute(
+            pg_insert(track_composers).values(
+                [
+                    {"track_id": track_id, "artist_id": composer.id}
+                    for composer in composers
+                ]
+            )
+        )
+
+    if album and album_artists:
+        await session.execute(
+            pg_insert(app.model.music.album_artists)
+            .values(
                 [
                     {"album_id": album.id, "artist_id": artist.id}
                     for artist in album_artists
                 ]
             )
+            .on_conflict_do_nothing(index_elements=["album_id", "artist_id"])
         )
 
     return True
@@ -133,13 +161,11 @@ def parse_music_file(file: Path) -> MusicFile:
 
     def first_tag(audio: Any, key: str) -> str | None:
         values = get_tag(audio, key)
-
         return values[0] if values else None
 
     def parse_number(value: str | None) -> int | None:
         if not value:
             return None
-
         try:
             return int(value.split("/")[0])
         except ValueError:
@@ -148,7 +174,6 @@ def parse_music_file(file: Path) -> MusicFile:
     def parse_total(value: str | None) -> int | None:
         if not value or "/" not in value:
             return None
-
         try:
             return int(value.split("/")[1])
         except ValueError:
@@ -176,6 +201,7 @@ def parse_music_file(file: Path) -> MusicFile:
     }
 
     md5 = getattr(audio.info, "md5_signature", None)
+    stat = file.stat()
 
     return MusicFile(
         title=first_tag(audio, "TITLE") or file.stem,
@@ -210,10 +236,11 @@ def parse_music_file(file: Path) -> MusicFile:
         file_name=file.name,
         file_extension=file.suffix.lower(),
         raw_metadata=raw_metadata,
+        file_mtime=datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.UTC),
     )
 
 
-async def run_scan() -> None:
+async def run_scan(full: bool = False) -> None:
     music_dir = Path(settings.MUSIC_DIR)
     allowed_extensions = {".flac", ".mp3"}
 
@@ -230,16 +257,60 @@ async def run_scan() -> None:
     total_music = len(music_files)
 
     async with sessionmanager.session() as session:
+        known_mtimes: dict[str, datetime.datetime] = {}
+        if not full:
+            existing = await session.execute(select(Track.file_path, Track.file_mtime))
+            known_mtimes = {path: mtime for path, mtime in existing.all()}
+
         count = 0
         for file in music_files:
             count += 1
+            file_path = str(file)
+
+            if not full:
+                disk_mtime = datetime.datetime.fromtimestamp(
+                    file.stat().st_mtime, tz=datetime.UTC
+                )
+                known = known_mtimes.get(file_path)
+                if known is not None and known >= disk_mtime:
+                    scan_state.percentage = int((count / total_music) * 100)
+                    continue
+
             try:
                 music = parse_music_file(file)
                 inserted = await insert_music_file(session, music)
-                scan_state.percentage = int((count / total_music) * 100)
+                await session.commit()
                 if inserted:
                     scan_state.inserted += 1
             except IntegrityError:
-                continue
+                await session.rollback()
+            except Exception:
+                await session.rollback()
+                raise
+            finally:
+                scan_state.percentage = int((count / total_music) * 100)
+
+        current_paths = {str(file) for file in music_files}
+
+        existing_paths_result = await session.execute(select(Track.id, Track.file_path))
+        stale_track_ids = [
+            track_id
+            for track_id, file_path in existing_paths_result.all()
+            if file_path not in current_paths
+        ]
+
+        if stale_track_ids:
+            await session.execute(
+                delete(track_artists).where(
+                    track_artists.c.track_id.in_(stale_track_ids)
+                )
+            )
+            await session.execute(
+                delete(track_composers).where(
+                    track_composers.c.track_id.in_(stale_track_ids)
+                )
+            )
+            await session.execute(delete(Track).where(Track.id.in_(stale_track_ids)))
+            await session.commit()
 
     scan_state.status = ScanStatus.DONE

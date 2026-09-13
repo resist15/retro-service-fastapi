@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 
-from sqlalchemy import Column, ForeignKey, Table
+from sqlalchemy import Column, DateTime, ForeignKey, String, Table
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -90,3 +90,9 @@ class Track(Base, TimestampMixin):
 
     artists: Mapped[list[Artist]] = relationship(secondary=track_artists)
     composers: Mapped[list[Artist]] = relationship(secondary=track_composers)
+
+    cover_path: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    file_mtime: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

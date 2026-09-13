@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import datetime
+from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
@@ -66,6 +66,8 @@ class MusicFile(BaseModel):
 
     raw_metadata: dict[str, list[str]] = Field(default_factory=dict)
 
+    file_mtime: datetime.datetime
+
 
 class TrackResponse(BaseModel):
     id: int
@@ -78,6 +80,7 @@ class TrackResponse(BaseModel):
     album_id: int | None
     album: str | None
     artists: list[str]
+
 
 @dataclass(frozen=True)
 class ByteRange:
