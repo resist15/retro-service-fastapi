@@ -34,6 +34,7 @@ class MusicService:
                 album_id=track.album_id,
                 album=track.album.name if track.album else None,
                 artists=[artist.name for artist in track.artists],
+                cover_path=track.cover_path,
             )
             for track in tracks
         ]

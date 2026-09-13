@@ -2,8 +2,9 @@ import datetime
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 class ScanStatus(StrEnum):
@@ -80,6 +81,17 @@ class TrackResponse(BaseModel):
     album_id: int | None
     album: str | None
     artists: list[str]
+    cover_path: str | None = Field(exclude=True)
+
+    @computed_field
+    @property
+    def cover_url(self) -> str | None:
+        if not self.cover_path:
+            return None
+        return f"/covers/{Path(self.cover_path).name}"
+
+    class Config:
+        from_attributes = True
 
 
 @dataclass(frozen=True)

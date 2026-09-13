@@ -20,6 +20,7 @@ class MusicRepository:
                 Track.sample_rate,
                 Track.file_extension,
                 Track.duration_secs,
+                Track.cover_path,
             ),
             selectinload(Track.album).load_only(
                 Album.id,
