@@ -17,3 +17,8 @@ class ErrorCode(Enum):
     USER_NOT_FOUND = ("User not found.", status.HTTP_404_NOT_FOUND)
 
     INVALID_REFRESH_TOKEN = ("Invalid refresh token", status.HTTP_400_BAD_REQUEST)
+
+    USER_APPROVAL_PENDING = (
+        "User approval is in queue please wait for account to get approved.",
+        status.HTTP_400_BAD_REQUEST,
+    )

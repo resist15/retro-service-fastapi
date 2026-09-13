@@ -5,7 +5,7 @@ from sqlalchemy import Boolean, DateTime, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.model.base import Base, CreatedAtMixin, IDMixin, TimestampMixin
-from app.utils.enums import ProviderType
+from app.utils.enums import AccountStatus, ProviderType, UserRole
 
 
 class User(Base, IDMixin, TimestampMixin):
@@ -24,6 +24,11 @@ class User(Base, IDMixin, TimestampMixin):
 
     password: Mapped[str] = mapped_column(
         String(255),
+    )
+
+    role: Mapped[UserRole] = mapped_column(nullable=False, default=UserRole.USER)
+    acc_status: Mapped[AccountStatus] = mapped_column(
+        nullable=False, default=AccountStatus.PENDING
     )
 
 

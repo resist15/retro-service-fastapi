@@ -21,7 +21,7 @@ from app.schemas.user import (
     UserResponse,
 )
 from app.utils.auth import Authutils
-from app.utils.enums import ProviderType
+from app.utils.enums import AccountStatus, ProviderType
 
 logger = get_logger(__name__)
 
@@ -34,6 +34,8 @@ class UserService:
     async def create_user(self, dto: UserRequest) -> UserResponse:
         db_user = await self.repo.get_user_by_email(dto.email)
         if db_user is not None:
+            if db_user.acc_status is AccountStatus.PENDING:
+                raise RetroException(ErrorCode.USER_APPROVAL_PENDING)
             raise RetroException(ErrorCode.USER_ALREADY_EXISTS)
         user_data = dto.model_dump()
         user_data["password"] = Authutils.hash_password(user_data["password"])
@@ -51,6 +53,11 @@ class UserService:
             user_data["password"] = ""
             db_user: User = User(**user_data)
             await self.repo.create_user(db_user)
+
+        if db_user is not None and db_user.acc_status is AccountStatus.PENDING:
+            return RedirectResponse(
+                url=settings.FRONTEND_URL + "/login?error=approval_pending"
+            )
 
         access_jti = uuid.uuid4()
 
@@ -70,6 +77,7 @@ class UserService:
             "sub": db_user.email,
             "jti": str(access_jti),
             "version": version,
+            "user_type": db_user.role.value,
         }
 
         access_token = Authutils.create_access_token(data=access_payload)
@@ -133,6 +141,9 @@ class UserService:
         if db_user is None:
             raise RetroException(ErrorCode.INVALID_CREDENTIALS)
 
+        if db_user is not None and db_user.acc_status is AccountStatus.PENDING:
+            raise RetroException(ErrorCode.USER_APPROVAL_PENDING)
+
         if not Authutils.verify_password(db_user.password, dto.password):
             raise RetroException(ErrorCode.INVALID_CREDENTIALS)
 
@@ -154,6 +165,7 @@ class UserService:
             "sub": db_user.email,
             "jti": str(access_jti),
             "version": version,
+            "user_type": db_user.role.value,
         }
 
         access_token = Authutils.create_access_token(data=access_payload)
@@ -258,6 +270,7 @@ class UserService:
             "sub": db_user.email,
             "jti": str(access_jti),
             "version": version,
+            "user_type": db_user.role.value,
         }
 
         access_token = Authutils.create_access_token(data=access_payload)
