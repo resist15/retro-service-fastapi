@@ -13,7 +13,7 @@ import app.model.music
 from app.core.config import settings
 from app.db.session import sessionmanager
 from app.model.music import Album, Artist, Track, track_artists, track_composers
-from app.schemas.music import MusicFile, ScanStatus, scan_state
+from app.schemas.music import MusicFile, ScanRequest, ScanStatus, scan_state
 from app.utils.music import extract_embedded_art
 
 
@@ -240,7 +240,8 @@ def parse_music_file(file: Path) -> MusicFile:
     )
 
 
-async def run_scan(full: bool = False) -> None:
+async def run_scan(payload: ScanRequest) -> None:
+    full = payload.full
     music_dir = Path(settings.MUSIC_DIR)
     allowed_extensions = {".flac", ".mp3"}
 

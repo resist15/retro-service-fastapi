@@ -1,19 +1,23 @@
 from types import SimpleNamespace
+from typing import Callable
 
 import jwt
 from fastapi import Cookie, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import SecurityScopes
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.redis import get_redis
 from app.db.session import get_db
+from app.exceptions.custom_exceptions import RetroException
+from app.exceptions.errors import ErrorCode
 from app.model.user import User
 from app.observability.decorators import observe
 from app.observability.logging import bind_request_context
 from app.repository.user import UserRepository
 from app.service.user import UserService
+from app.utils.enums import UserRole
 
 
 def get_user_repo(session: AsyncSession = Depends(get_db)) -> UserRepository:
@@ -28,7 +32,8 @@ def get_user_service(
 
 @observe("Security.verify_token")
 async def get_current_user_email(
-    token: str | None = Cookie(default=None, alias="access_token"), redis: Redis = Depends(get_redis)
+    token: str | None = Cookie(default=None, alias="access_token"),
+    redis: Redis = Depends(get_redis),
 ) -> SimpleNamespace:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -86,3 +91,12 @@ async def get_current_user(
     if db_user is None:
         raise credentials_exception
     return db_user
+
+
+def require_role(role: UserRole) -> Callable:
+    async def curr_user(user: User = Depends(get_current_user)) -> User:
+        if user.role != role:
+            raise RetroException(ErrorCode.INSUFFICIENT_ROLE)
+        return user
+
+    return curr_user

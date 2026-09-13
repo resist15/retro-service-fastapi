@@ -7,6 +7,10 @@ from pathlib import Path
 from pydantic import BaseModel, Field, computed_field
 
 
+class ScanRequest(BaseModel):
+    full: bool = False
+
+
 class ScanStatus(StrEnum):
     IDLE = "idle"
     RUNNING = "running"
@@ -102,35 +106,3 @@ class ByteRange:
 
 class InvalidRange(Exception):
     pass
-    # {
-    #     "file_extension": ".flac",
-    #     "duration_secs": 279.82666666666665,
-    #     "bitrate": 976000,
-    #     "id": 1,
-    #     "release_date": "2010-04-09",
-    #     "sample_rate": 44100,
-    #     "title": "Tere Liye",
-    #     "album_id": 1,
-    #     "album": {
-    #         "id": 1,
-    #         "name": "Prince (Original Motion Picture Soundtrack)"
-    #     },
-    #     "artists": [
-    #         {
-    #             "id": 1,
-    #             "name": "Atif Aslam"
-    #         },
-    #         {
-    #             "id": 2,
-    #             "name": "Shreya Ghoshal"
-    #         },
-    #         {
-    #             "id": 3,
-    #             "name": "Sachin Gupta"
-    #         },
-    #         {
-    #             "id": 4,
-    #             "name": "Sameer Anjaan"
-    #         }
-    #     ]
-    # },

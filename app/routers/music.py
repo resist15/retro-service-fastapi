@@ -1,22 +1,34 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 
 from app.dependencies.music import get_music_service
+from app.dependencies.user import require_role
 from app.exceptions.custom_exceptions import RetroException
-from app.schemas.music import ScanState, ScanStatus, TrackResponse, scan_state
+from app.schemas.music import (
+    ScanRequest,
+    ScanState,
+    ScanStatus,
+    TrackResponse,
+    scan_state,
+)
 from app.service.music import MusicService
 from app.service.music_scan import run_scan
+from app.utils.enums import UserRole
 
 music_router = APIRouter(tags=["Music"], prefix="/music")
 
 
 @music_router.post("/scan")
-async def start_scan(background_tasks: BackgroundTasks) -> ScanState:
+async def scan_full(
+    payload: ScanRequest,
+    background_tasks: BackgroundTasks,
+    user=Depends(require_role(UserRole.SUPER_USER)),
+) -> ScanState:
     if scan_state.status == ScanStatus.RUNNING:
         raise RetroException(
             message="Scan already running", status_code=status.HTTP_409_CONFLICT
         )
 
-    background_tasks.add_task(run_scan)
+    background_tasks.add_task(run_scan, payload)
     scan_state.status = ScanStatus.RUNNING
     scan_state.inserted = 0
 

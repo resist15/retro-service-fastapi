@@ -22,3 +22,8 @@ class ErrorCode(Enum):
         "User approval is in queue please wait for account to get approved.",
         status.HTTP_400_BAD_REQUEST,
     )
+
+    INSUFFICIENT_ROLE = (
+        "User does not have sufficient permissions for this action",
+        status.HTTP_403_FORBIDDEN,
+    )
