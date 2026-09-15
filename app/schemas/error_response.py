@@ -1,12 +1,12 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
 
 class ErrorDetail(BaseModel):
-    # field: str | None = None
+    field: str | None = None
     message: str
-    # code: str | None = None
+    code: str | None = None
 
 
 class ErrorResponse(BaseModel):
@@ -14,6 +14,4 @@ class ErrorResponse(BaseModel):
     details: list[ErrorDetail] | None = None
     status_code: int
     path: str
-    timestamp: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())

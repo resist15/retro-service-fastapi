@@ -35,14 +35,13 @@ async def login(
     return await user_service.login_user(response=response, dto=dto, redis=redis)
 
 
-@auth_router.post("/refresh", response_model=LoginResponseMessage)
+@auth_router.post("/refresh")
 async def refresh(
     response: Response,
-    refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
+    refresh_token: str = Cookie(alias="refresh_token"),
     user_service: UserService = Depends(get_user_service),
     redis: Redis = Depends(get_redis),
 ):
-    print(refresh_token)
     token: RefreshRequest = RefreshRequest(refresh_token=UUID(refresh_token))
     return await user_service.refresh(response=response, dto=token, redis=redis)
 
@@ -50,7 +49,7 @@ async def refresh(
 @auth_router.post("/logout")
 async def logout(
     response: Response,
-    refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
+    refresh_token: str = Cookie(alias="refresh_token"),
     user_service: UserService = Depends(get_user_service),
     user=Depends(get_current_user_email),
     redis: Redis = Depends(get_redis),
