@@ -1,4 +1,6 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
 
 from app.dependencies.music import get_music_service
 from app.dependencies.user import require_role
@@ -7,6 +9,7 @@ from app.schemas.music import (
     ScanRequest,
     ScanState,
     ScanStatus,
+    TrackPageResponse,
     TrackResponse,
     scan_state,
 )
@@ -40,9 +43,19 @@ async def get_scan_status() -> ScanState:
     return scan_state
 
 
-@music_router.get("/tracks", response_model=list[TrackResponse])
-async def get_tracks(music_service: MusicService = Depends(get_music_service)):
-    return await music_service.get_tracks()
+@music_router.get(
+    "/tracks",
+    response_model=TrackPageResponse,
+)
+async def get_tracks(
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+    cursor: int | None = Query(default=None, ge=0),
+    music_service: MusicService = Depends(get_music_service),
+):
+    return await music_service.get_tracks(
+        limit=limit,
+        cursor=cursor,
+    )
 
 
 @music_router.get("/tracks/{track_id}", response_model=TrackResponse)

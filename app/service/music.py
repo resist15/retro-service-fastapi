@@ -12,6 +12,7 @@ from app.repository.music import MusicRepository
 from app.schemas.music import (
     ByteRange,
     InvalidRange,
+    TrackPageResponse,
     TrackResponse,
 )
 
@@ -20,10 +21,18 @@ class MusicService:
     def __init__(self, repository: MusicRepository):
         self.repo = repository
 
-    async def get_tracks(self) -> list[TrackResponse]:
-        tracks = await self.repo.get_tracks()
+    async def get_tracks(
+        self,
+        limit: int = 30,
+        cursor: int | None = None,
+    ) -> TrackPageResponse:
 
-        return [
+        tracks = await self.repo.get_tracks(
+            limit=limit,
+            cursor=cursor,
+        )
+
+        items = [
             TrackResponse(
                 id=track.id,
                 title=track.title,
@@ -39,6 +48,14 @@ class MusicService:
             )
             for track in tracks
         ]
+
+        next_cursor = items[-1].id if len(items) == limit else None
+
+        return TrackPageResponse(
+            items=items,
+            next_cursor=next_cursor,
+            has_more=next_cursor is not None,
+        )
 
     async def get_track(self, track_id: int) -> TrackResponse:
         track: Track | None = await self.repo.get_track(track_id)
@@ -168,6 +185,8 @@ class MusicService:
             await file.seek(start)
 
             while remaining > 0:
+                # chunk_size = min(512 * 512, remaining)
+
                 chunk_size = min(
                     1024 * 1024,
                     remaining,
@@ -224,7 +243,7 @@ class MusicService:
                 if end < start:
                     raise InvalidRange
 
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             raise InvalidRange
 
         return ByteRange(

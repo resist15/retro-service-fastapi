@@ -106,3 +106,9 @@ class ByteRange:
 
 class InvalidRange(Exception):
     pass
+
+
+class TrackPageResponse(BaseModel):
+    items: list[TrackResponse]
+    next_cursor: int | None
+    has_more: bool
