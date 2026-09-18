@@ -45,6 +45,13 @@ async def get_tracks(music_service: MusicService = Depends(get_music_service)):
     return await music_service.get_tracks()
 
 
+@music_router.get("/tracks/{track_id}", response_model=TrackResponse)
+async def get_track(
+    track_id: int, music_service: MusicService = Depends(get_music_service)
+):
+    return await music_service.get_track(track_id)
+
+
 @music_router.get("/stream/{music_id}")
 async def stream_music(
     music_id: int,

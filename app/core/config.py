@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     MUSIC_DIR: str
     COVERS_DIR: str
 
+    DOMAIN : str | None = None
+
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()

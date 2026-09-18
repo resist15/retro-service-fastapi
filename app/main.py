@@ -15,6 +15,7 @@ from app.db.session import sessionmanager
 from app.exceptions.exception_handlers import register_exception_handlers
 from app.middleware.security_headers import CSPHeadersMiddleware, HSTSHeadersMiddleware
 from app.observability.logging import configure_logging, get_logger
+from app.observability.metrics import configure_metrics
 from app.observability.middleware import register_middleware
 from app.observability.tracing import configure_tracing
 from app.routers.private_router import private_router
@@ -57,6 +58,7 @@ def create_application() -> FastAPI:
 
     FastAPIInstrumentor.instrument_app(app=app)
     configure_tracing(settings=settings)
+    configure_metrics(settings=settings)
     register_middleware(app=app)
 
     app.add_middleware(HSTSHeadersMiddleware)

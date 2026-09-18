@@ -27,3 +27,5 @@ class ErrorCode(Enum):
         "User does not have sufficient permissions for this action",
         status.HTTP_403_FORBIDDEN,
     )
+
+    TRACK_NOT_FOUND = ("Track not found!", status.HTTP_404_NOT_FOUND)

@@ -36,7 +36,38 @@ class MusicRepository:
 
         return list(result.scalars().all())
 
-    async def get_track(self, track_id) -> Track | None:
-        query = select(Track).where(Track.id == track_id)
-        result = await self.db.execute(query)
+    async def get_track(
+        self,
+        track_id: int,
+    ) -> Track | None:
+
+        query = (
+            select(Track)
+            .options(
+                load_only(
+                    Track.id,
+                    Track.title,
+                    Track.album_id,
+                    Track.release_date,
+                    Track.bitrate,
+                    Track.sample_rate,
+                    Track.file_extension,
+                    Track.duration_secs,
+                    Track.cover_path,
+                ),
+                selectinload(Track.album).load_only(
+                    Album.id,
+                    Album.name,
+                ),
+                selectinload(Track.artists).load_only(
+                    Artist.id,
+                    Artist.name,
+                ),
+            )
+            .where(Track.id == track_id)
+        )
+
+    async def get_single_track(self, track_id) -> Track | None:
+        stmt = select(Track).where(Track.id == track_id)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()

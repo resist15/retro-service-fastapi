@@ -114,7 +114,8 @@ class UserService:
             httponly=True,
             secure=True,
             samesite="lax",
-            expires=refresh_expiration_time,
+            expires=access_expiration_time,
+            domain=settings.DOMAIN,
         )
 
         response.set_cookie(
@@ -124,7 +125,9 @@ class UserService:
             secure=True,
             samesite="lax",
             path="/auth",
-            expires=access_expiration_time,
+            expires=refresh_expiration_time,
+            
+            domain=settings.DOMAIN,
         )
 
         return response
@@ -200,7 +203,8 @@ class UserService:
             httponly=True,
             secure=True,
             samesite="lax",
-            expires=refresh_expiration_time,
+            expires=access_expiration_time,
+            domain=settings.DOMAIN,
         )
 
         response.set_cookie(
@@ -210,7 +214,8 @@ class UserService:
             secure=True,
             samesite="lax",
             path="/auth",
-            expires=access_expiration_time,
+            expires=refresh_expiration_time,
+            domain=settings.DOMAIN,
         )
 
         return LoginResponseMessage(detail="Login successful")
@@ -304,7 +309,8 @@ class UserService:
             httponly=True,
             secure=True,
             samesite="lax",
-            expires=refresh_expiration_time,
+            expires=access_expiration_time,
+            domain=settings.DOMAIN,
         )
 
         response.set_cookie(
@@ -314,7 +320,8 @@ class UserService:
             secure=True,
             samesite="lax",
             path="/auth",
-            expires=access_expiration_time,
+            expires=refresh_expiration_time,
+            domain=settings.DOMAIN,
         )
 
         return LoginResponseMessage(detail="Refreshed Successfully")

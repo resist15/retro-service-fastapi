@@ -6,6 +6,7 @@ from fastapi import Request, status
 from fastapi.responses import StreamingResponse
 
 from app.exceptions.custom_exceptions import RetroException
+from app.exceptions.errors import ErrorCode
 from app.model.music import Track
 from app.repository.music import MusicRepository
 from app.schemas.music import (
@@ -39,20 +40,36 @@ class MusicService:
             for track in tracks
         ]
 
+    async def get_track(self, track_id: int) -> TrackResponse:
+        track: Track | None = await self.repo.get_track(track_id)
+
+        if track is None:
+            raise RetroException(ErrorCode.TRACK_NOT_FOUND)
+
+        return TrackResponse(
+            id=track.id,
+            title=track.title,
+            file_extension=track.file_extension,
+            duration_secs=track.duration_secs,
+            bitrate=track.bitrate,
+            release_date=track.release_date,
+            sample_rate=track.sample_rate,
+            album_id=track.album_id,
+            album=track.album.name if track.album else None,
+            artists=[artist.name for artist in track.artists],
+            cover_path=track.cover_path,
+        )
+
     async def stream_music(
         self,
         music_id: int,
         request: Request,
     ) -> StreamingResponse:
 
-        track: Track | None = await self.repo.get_track(music_id)
+        track: Track | None = await self.repo.get_single_track(music_id)
 
         if track is None:
-            raise RetroException(
-                message="Track not found",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
-
+            raise RetroException(ErrorCode.TRACK_NOT_FOUND)
         file_path = Path(track.file_path)
 
         if not file_path.is_file():
@@ -85,7 +102,10 @@ class MusicService:
                     end=file_size - 1,
                 ),
                 status_code=status.HTTP_200_OK,
-                media_type="audio/flac",
+                media_type={
+                    ".flac": "audio/flac",
+                    ".mp3": "audio/mpeg",
+                }.get(track.file_extension.lower()),
                 headers={
                     "Content-Length": str(file_size),
                     "Accept-Ranges": "bytes",
@@ -120,7 +140,10 @@ class MusicService:
                 end=end,
             ),
             status_code=status.HTTP_206_PARTIAL_CONTENT,
-            media_type="audio/flac",
+            media_type={
+                ".flac": "audio/flac",
+                ".mp3": "audio/mpeg",
+            }.get(track.file_extension.lower()),
             headers={
                 "Content-Range": (f"bytes {start}-{end}/{file_size}"),
                 "Accept-Ranges": "bytes",
@@ -201,7 +224,7 @@ class MusicService:
                 if end < start:
                     raise InvalidRange
 
-        except ValueError, IndexError:
+        except (ValueError, IndexError):
             raise InvalidRange
 
         return ByteRange(

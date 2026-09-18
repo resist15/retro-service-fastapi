@@ -5,6 +5,8 @@ from redis.asyncio import Redis
 
 from app.db.redis import get_redis
 from app.dependencies.user import get_current_user_email, get_user_service
+from app.exceptions.custom_exceptions import RetroException
+from app.exceptions.errors import ErrorCode
 from app.schemas.user import (
     LoginRequest,
     LoginResponse,
@@ -38,10 +40,12 @@ async def login(
 @auth_router.post("/refresh")
 async def refresh(
     response: Response,
-    refresh_token: str = Cookie(alias="refresh_token"),
+    refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
     user_service: UserService = Depends(get_user_service),
     redis: Redis = Depends(get_redis),
 ):
+    if refresh_token is None:
+        raise RetroException(ErrorCode.INVALID_CREDENTIALS)
     token: RefreshRequest = RefreshRequest(refresh_token=UUID(refresh_token))
     return await user_service.refresh(response=response, dto=token, redis=redis)
 
@@ -49,11 +53,14 @@ async def refresh(
 @auth_router.post("/logout")
 async def logout(
     response: Response,
-    refresh_token: str = Cookie(alias="refresh_token"),
+    refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
     user_service: UserService = Depends(get_user_service),
     user=Depends(get_current_user_email),
     redis: Redis = Depends(get_redis),
 ):
+    if refresh_token is None:
+        raise RetroException(ErrorCode.INVALID_CREDENTIALS)
+
     token: RefreshRequest = RefreshRequest(refresh_token=UUID(refresh_token))
     return await user_service.logout(
         id=user.id,
