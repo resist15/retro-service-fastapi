@@ -112,3 +112,8 @@ class TrackPageResponse(BaseModel):
     items: list[TrackResponse]
     next_cursor: int | None
     has_more: bool
+
+
+class PlaybackStateRequest(BaseModel):
+    track_id: int
+    progress_secs: int

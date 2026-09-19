@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 
 from app.dependencies.playback import get_playback_service
 from app.dependencies.user import get_current_user_email, get_user_service
+from app.schemas.music import PlaybackStateRequest
 from app.schemas.user import PlaybackStateResponse, UserResponse
 from app.service.playback import PlaybackService
 from app.service.user import UserService
@@ -25,3 +26,12 @@ async def get_playback_state(
     user: SimpleNamespace = Depends(get_current_user_email),
 ) -> PlaybackStateResponse:
     return await playback_service.get_playback_state(user.id)
+
+
+@user_router.put("/me/state", response_model=PlaybackStateResponse)
+async def update_playback_sate(
+    payload: PlaybackStateRequest,
+    playback_service: PlaybackService = Depends(get_playback_service),
+    user: SimpleNamespace = Depends(get_current_user_email),
+) -> PlaybackStateResponse:
+    return await playback_service.update_playback_state(user.id, payload)
