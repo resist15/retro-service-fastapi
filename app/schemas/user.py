@@ -75,9 +75,17 @@ class LoginResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class LoginResponseMessage(BaseModel):
     detail: str
     model_config = {"from_attributes": True}
-    
+
+
 class RefreshRequest(BaseModel):
     refresh_token: UUID
+
+
+class PlaybackStateResponse(BaseModel):
+    track_id: int = 0
+    playing: bool = False
+    progress: int = 0

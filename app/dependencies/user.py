@@ -1,9 +1,8 @@
+from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Callable
 
 import jwt
 from fastapi import Cookie, Depends, HTTPException, status
-from fastapi.security import SecurityScopes
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 

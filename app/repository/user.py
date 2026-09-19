@@ -1,6 +1,5 @@
-import uuid
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Sequence
 from uuid import UUID
 
 from sqlalchemy import select, update

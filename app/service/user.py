@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 from app.core.config import settings
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
+from app.model.playback import PlaybackState
 from app.model.user import RefreshToken, User
 from app.observability.decorators import observe
 from app.observability.logging import get_logger
@@ -16,6 +17,7 @@ from app.schemas.user import (
     LoginRequest,
     LoginResponseMessage,
     OAuthLoginRequest,
+    PlaybackStateResponse,
     RefreshRequest,
     UserRequest,
     UserResponse,
@@ -126,7 +128,6 @@ class UserService:
             samesite="lax",
             path="/auth",
             expires=refresh_expiration_time,
-            
             domain=settings.DOMAIN,
         )
 
