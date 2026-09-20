@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Uuid
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.model.base import Base, CreatedAtMixin, IDMixin, TimestampMixin
@@ -45,3 +45,18 @@ class RefreshToken(Base, IDMixin, CreatedAtMixin):
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     jti: Mapped[UUID] = mapped_column(Uuid, nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    device_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    user_agent: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    ip_address: Mapped[str | None] = mapped_column(
+        String(45),
+        nullable=True,
+    )

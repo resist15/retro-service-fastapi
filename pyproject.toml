@@ -25,6 +25,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.49",
     "starlette[full]>=1.0.0",
     "structlog>=25.5.0",
+    "user-agents>=2.2.0",
 ]
 [tool.ruff.lint]
 ignore = ["B008"]

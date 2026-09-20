@@ -37,13 +37,23 @@ class UserRepository:
         return refresh_token
 
     async def create_refresh_token(
-        self, token: UUID, user_id: int, expiration_time: datetime, refresh_jti: UUID
+        self,
+        token: UUID,
+        user_id: int,
+        expiration_time: datetime,
+        refresh_jti: UUID,
+        device_name: str,
+        user_agent: str,
+        ip_address: str,
     ) -> RefreshToken:
         data = {
             "user_id": user_id,
             "refresh_token": token,
             "valid_till": expiration_time,
             "jti": refresh_jti,
+            "device_name": device_name,
+            "user_agent": user_agent,
+            "ip_address": ip_address,
         }
         new_token = RefreshToken(**data)
         self.db.add(new_token)

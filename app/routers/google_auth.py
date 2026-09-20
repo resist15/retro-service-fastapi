@@ -46,4 +46,6 @@ async def google_callback(
         provider_type=ProviderType.GOOGLE,
     )
 
-    return await user_service.oauth_login_user(user_data, redis)
+    return await user_service.oauth_login_user(
+        dto=user_data, redis=redis, request=request
+    )

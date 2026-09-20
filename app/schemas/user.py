@@ -89,3 +89,12 @@ class PlaybackStateResponse(BaseModel):
     track_id: int = 0
     playing: bool = False
     progress: int = 0
+
+
+class DeviceSession(BaseModel):
+    sid: str
+    device_name: str
+    user_agent: str
+    created_at: datetime
+    valid_till: datetime
+    current: bool = False

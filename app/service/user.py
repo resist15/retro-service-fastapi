@@ -1,23 +1,23 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
-from fastapi import Response
+from fastapi import Request, Response
 from fastapi.responses import RedirectResponse
 from redis.asyncio import Redis
 
 from app.core.config import settings
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
-from app.model.playback import PlaybackState
 from app.model.user import RefreshToken, User
 from app.observability.decorators import observe
 from app.observability.logging import get_logger
 from app.repository.user import UserRepository
 from app.schemas.user import (
+    DeviceSession,
     LoginRequest,
     LoginResponseMessage,
     OAuthLoginRequest,
-    PlaybackStateResponse,
     RefreshRequest,
     UserRequest,
     UserResponse,
@@ -48,7 +48,9 @@ class UserService:
         return UserResponse.model_validate(user)
 
     @observe("UserService.oauth_login")
-    async def oauth_login_user(self, dto: OAuthLoginRequest, redis: Redis):
+    async def oauth_login_user(
+        self, request: Request, dto: OAuthLoginRequest, redis: Redis
+    ):
         db_user: User | None = await self.repo.get_user_by_email(dto.email)
         if db_user is None:
             user_data = dto.model_dump()
@@ -98,8 +100,16 @@ class UserService:
             days=settings.REFRESH_TOKEN_EXP_DAYS
         )
 
+        device_info = Authutils.get_device_info(request)
+
         token = await self.repo.create_refresh_token(
-            refresh_token, db_user.id, expiration_time, refresh_jti
+            refresh_token,
+            db_user.id,
+            expiration_time,
+            refresh_jti,
+            device_name=device_info["device_name"],
+            user_agent=device_info["user_agent"],
+            ip_address=device_info["ip_address"],
         )
 
         response = RedirectResponse(url=settings.FRONTEND_URL + "/home")
@@ -139,7 +149,7 @@ class UserService:
 
     @observe("UserService.login_user")
     async def login_user(
-        self, response: Response, dto: LoginRequest, redis: Redis
+        self, response: Response, dto: LoginRequest, redis: Redis, request: Request
     ) -> LoginResponseMessage:
         db_user = await self.repo.get_user_by_email(dto.email)
         if db_user is None:
@@ -188,8 +198,16 @@ class UserService:
             days=settings.REFRESH_TOKEN_EXP_DAYS
         )
 
+        device_info = Authutils.get_device_info(request)
+
         token = await self.repo.create_refresh_token(
-            refresh_token, db_user.id, expiration_time, refresh_jti
+            refresh_token,
+            db_user.id,
+            expiration_time,
+            refresh_jti,
+            device_name=device_info["device_name"],
+            user_agent=device_info["user_agent"],
+            ip_address=device_info["ip_address"],
         )
 
         refresh_expiration_time = datetime.now(UTC) + timedelta(
@@ -232,7 +250,9 @@ class UserService:
         logger.info("Get user request")
         return UserResponse.model_validate(db_user)
 
-    async def refresh(self, response: Response, dto: RefreshRequest, redis: Redis):
+    async def refresh(
+        self, request: Request, response: Response, dto: RefreshRequest, redis: Redis
+    ):
 
         token: RefreshToken | None = await self.repo.get_refresh_token(
             dto.refresh_token
@@ -294,8 +314,16 @@ class UserService:
             days=settings.REFRESH_TOKEN_EXP_DAYS
         )
 
+        device_info = Authutils.get_device_info(request)
+
         token = await self.repo.create_refresh_token(
-            refresh_token, db_user.id, expiration_time, refresh_jti
+            refresh_token,
+            db_user.id,
+            expiration_time,
+            refresh_jti,
+            device_name=device_info["device_name"],
+            user_agent=device_info["user_agent"],
+            ip_address=device_info["ip_address"],
         )
 
         refresh_expiration_time = datetime.now(UTC) + timedelta(
@@ -362,3 +390,21 @@ class UserService:
             path="/",
         )
         return {"detail": "Logged out sucessfully"}
+
+    async def get_all_session(
+        self, user_id: int, refresh_token: UUID
+    ) -> list[DeviceSession]:
+
+        token_list = await self.repo.get_refresh_tokens_user_id(user_id)
+
+        return [
+            DeviceSession(
+                sid=str(token.jti),
+                created_at=token.created_at,
+                device_name=token.device_name if token.device_name else "",
+                valid_till=token.valid_till,
+                user_agent=token.user_agent if token.user_agent else "",
+                current=token.refresh_token == refresh_token,
+            )
+            for token in token_list
+        ]
