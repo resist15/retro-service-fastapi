@@ -408,3 +408,38 @@ class UserService:
             )
             for token in token_list
         ]
+
+    async def logout_specific(
+        self,
+        dto: RefreshRequest,
+        id: int,
+        redis: Redis,
+        current_jti: str,
+        response: Response,
+        session_id: str,
+    ):
+        token = await self.repo.get_refresh_token_by_jti(
+            jti=UUID(session_id), user_id=id
+        )
+
+        if token is None:
+            raise RetroException(ErrorCode.INVALID_SESSION_ID)
+
+        if token.refresh_token == dto.refresh_token:
+            await self.logout(
+                dto=dto, id=id, redis=redis, response=response, jti=current_jti
+            )
+
+        old_token = await self.repo.revoke_refresh_token_by_jti(UUID(session_id), id)
+
+        if old_token is None:
+            raise RetroException(ErrorCode.INVALID_SESSION_ID)
+
+        expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
+
+        await redis.set(
+            f"retro-service:{id}:access-blacklist:{token.jti!s}",
+            "1",
+            ex=expiration_time,
+        )
+        return {"detail": "Logged out sucessfully"}

@@ -36,6 +36,18 @@ class UserRepository:
         refresh_token = result.scalar_one_or_none()
         return refresh_token
 
+    async def get_refresh_token_by_jti(
+        self, jti: UUID, user_id: int
+    ) -> RefreshToken | None:
+        q = (
+            select(RefreshToken)
+            .where(RefreshToken.jti == jti)
+            .where(RefreshToken.user_id == user_id)
+        )
+        result = await self.db.execute(q)
+        refresh_token = result.scalar_one_or_none()
+        return refresh_token
+
     async def create_refresh_token(
         self,
         token: UUID,
@@ -88,6 +100,31 @@ class UserRepository:
         result = await self.db.execute(q)
         refresh_token_list = result.scalars().all()
         return refresh_token_list
+
+    async def revoke_refresh_token_by_jti(self, jti: UUID, user_id: int | None = None):
+        if user_id == None:
+            q = (
+                select(RefreshToken)
+                .where(RefreshToken.jti == jti)
+                .where(RefreshToken.revoked == False)
+            )
+        else:
+            q = (
+                select(RefreshToken)
+                .where(RefreshToken.user_id == user_id)
+                .where(RefreshToken.jti == jti)
+                .where(RefreshToken.revoked == False)
+            )
+        result = await self.db.execute(q)
+        db_token = result.scalar_one_or_none()
+        if db_token == None:
+            return None
+
+        db_token.revoked = True
+        await self.db.flush()
+        await self.db.commit()
+        await self.db.refresh(db_token)
+        return db_token
 
     async def revoke_refresh_token(self, token: UUID, user_id: int | None = None):
         if user_id == None:

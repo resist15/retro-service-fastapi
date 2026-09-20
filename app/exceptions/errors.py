@@ -29,3 +29,5 @@ class ErrorCode(Enum):
     )
 
     TRACK_NOT_FOUND = ("Track not found!", status.HTTP_404_NOT_FOUND)
+
+    INVALID_SESSION_ID = ("Invalid session id!", status.HTTP_400_BAD_REQUEST)

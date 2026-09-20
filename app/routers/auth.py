@@ -89,7 +89,23 @@ async def logout_all(
 
 @auth_router.get("/sessions")
 async def get_sessions(
+    refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
+    user_service: UserService = Depends(get_user_service),
+    user=Depends(get_current_user_email),
+):
+    if refresh_token is None:
+        raise RetroException(ErrorCode.INVALID_CREDENTIALS)
+
+    return await user_service.get_all_session(
+        user_id=user.id,
+        refresh_token=UUID(refresh_token),
+    )
+
+
+@auth_router.post("/logout/session/{session_id}")
+async def logout_specific(
     response: Response,
+    session_id: str,
     refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
     user_service: UserService = Depends(get_user_service),
     user=Depends(get_current_user_email),
@@ -98,7 +114,12 @@ async def get_sessions(
     if refresh_token is None:
         raise RetroException(ErrorCode.INVALID_CREDENTIALS)
 
-    return await user_service.get_all_session(
-        user_id=user.id,
-        refresh_token=UUID(refresh_token),
+    token: RefreshRequest = RefreshRequest(refresh_token=UUID(refresh_token))
+    return await user_service.logout_specific(
+        id=user.id,
+        dto=token,
+        session_id=session_id,
+        redis=redis,
+        current_jti=user.auth_token.get("jti"),
+        response=response,
     )
