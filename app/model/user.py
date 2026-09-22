@@ -60,3 +60,5 @@ class RefreshToken(Base, IDMixin, CreatedAtMixin):
         String(45),
         nullable=True,
     )
+
+    access_jti: Mapped[UUID] = mapped_column(Uuid, nullable=False)

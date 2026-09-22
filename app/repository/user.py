@@ -30,18 +30,37 @@ class UserRepository:
         user = result.scalar_one_or_none()
         return user
 
-    async def get_refresh_token(self, token: UUID) -> RefreshToken | None:
+    async def get_refresh_token(
+        self,
+        token: UUID,
+    ) -> RefreshToken | None:
         q = select(RefreshToken).where(RefreshToken.refresh_token == token)
         result = await self.db.execute(q)
         refresh_token = result.scalar_one_or_none()
         return refresh_token
 
     async def get_refresh_token_by_jti(
-        self, jti: UUID, user_id: int
+        self,
+        jti: UUID,
+        user_id: int,
     ) -> RefreshToken | None:
         q = (
             select(RefreshToken)
             .where(RefreshToken.jti == jti)
+            .where(RefreshToken.user_id == user_id)
+        )
+        result = await self.db.execute(q)
+        refresh_token = result.scalar_one_or_none()
+        return refresh_token
+
+    async def get_refresh_token_by_access_jti(
+        self,
+        access_jti: UUID,
+        user_id: int,
+    ) -> RefreshToken | None:
+        q = (
+            select(RefreshToken)
+            .where(RefreshToken.access_jti == access_jti)
             .where(RefreshToken.user_id == user_id)
         )
         result = await self.db.execute(q)
@@ -54,6 +73,7 @@ class UserRepository:
         user_id: int,
         expiration_time: datetime,
         refresh_jti: UUID,
+        access_jti: UUID,
         device_name: str,
         user_agent: str,
         ip_address: str,
@@ -63,6 +83,7 @@ class UserRepository:
             "refresh_token": token,
             "valid_till": expiration_time,
             "jti": refresh_jti,
+            "access_jti": access_jti,
             "device_name": device_name,
             "user_agent": user_agent,
             "ip_address": ip_address,
@@ -73,11 +94,14 @@ class UserRepository:
         await self.db.refresh(new_token)
         return new_token
 
-    async def revoke_oldest_token(self, user_id: int) -> RefreshToken | None:
+    async def revoke_oldest_token(
+        self,
+        user_id: int,
+    ) -> RefreshToken | None:
         q1 = (
             select(RefreshToken)
             .where(RefreshToken.user_id == user_id)
-            .where(RefreshToken.revoked == False)
+            .where(RefreshToken.revoked.is_(False))
             .order_by(RefreshToken.created_at)
             .limit(1)
         )
@@ -91,33 +115,37 @@ class UserRepository:
         await self.db.refresh(old_token)
         return old_token
 
-    async def get_refresh_tokens_user_id(self, user_id: int) -> Sequence[RefreshToken]:
+    async def get_refresh_tokens_user_id(
+        self,
+        user_id: int,
+    ) -> Sequence[RefreshToken]:
         q = (
             select(RefreshToken)
             .where(RefreshToken.user_id == user_id)
-            .where(RefreshToken.revoked == False)
+            .where(RefreshToken.revoked.is_(False))
         )
         result = await self.db.execute(q)
         refresh_token_list = result.scalars().all()
         return refresh_token_list
 
-    async def revoke_refresh_token_by_jti(self, jti: UUID, user_id: int | None = None):
-        if user_id == None:
-            q = (
-                select(RefreshToken)
-                .where(RefreshToken.jti == jti)
-                .where(RefreshToken.revoked == False)
-            )
-        else:
-            q = (
-                select(RefreshToken)
-                .where(RefreshToken.user_id == user_id)
-                .where(RefreshToken.jti == jti)
-                .where(RefreshToken.revoked == False)
-            )
+    async def revoke_refresh_token_by_jti(
+        self,
+        jti: UUID,
+        user_id: int | None = None,
+    ) -> RefreshToken | None:
+        q = (
+            select(RefreshToken)
+            .where(RefreshToken.jti == jti)
+            .where(RefreshToken.revoked.is_(False))
+        )
+
+        if user_id is not None:
+            q = q.where(RefreshToken.user_id == user_id)
+
         result = await self.db.execute(q)
         db_token = result.scalar_one_or_none()
-        if db_token == None:
+
+        if db_token is None:
             return None
 
         db_token.revoked = True
@@ -126,23 +154,25 @@ class UserRepository:
         await self.db.refresh(db_token)
         return db_token
 
-    async def revoke_refresh_token(self, token: UUID, user_id: int | None = None):
-        if user_id == None:
-            q = (
-                select(RefreshToken)
-                .where(RefreshToken.refresh_token == token)
-                .where(RefreshToken.revoked == False)
-            )
-        else:
-            q = (
-                select(RefreshToken)
-                .where(RefreshToken.user_id == user_id)
-                .where(RefreshToken.refresh_token == token)
-                .where(RefreshToken.revoked == False)
-            )
+    async def revoke_refresh_token(
+        self,
+        token: UUID,
+        user_id: int | None = None,
+    ) -> RefreshToken | None:
+        q = (
+            select(RefreshToken)
+            .where(RefreshToken.refresh_token == token)
+            .where(RefreshToken.revoked.is_(False))
+        )
+
+        if user_id is not None:
+            q = q.where(RefreshToken.user_id == user_id)
+
         result = await self.db.execute(q)
+
         db_token = result.scalar_one_or_none()
-        if db_token == None:
+
+        if db_token is None:
             return None
 
         db_token.revoked = True
@@ -151,7 +181,10 @@ class UserRepository:
         await self.db.refresh(db_token)
         return db_token
 
-    async def revoke_all_by_user_id(self, user_id: int) -> list[RefreshToken]:
+    async def revoke_all_by_user_id(
+        self,
+        user_id: int,
+    ) -> Sequence[RefreshToken]:
         result = await self.db.execute(
             update(RefreshToken)
             .where(

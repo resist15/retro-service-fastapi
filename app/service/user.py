@@ -33,7 +33,10 @@ class UserService:
         self.repo = repository
 
     @observe("UserService.create_user")
-    async def create_user(self, dto: UserRequest) -> UserResponse:
+    async def create_user(
+        self,
+        dto: UserRequest,
+    ) -> UserResponse:
         db_user = await self.repo.get_user_by_email(dto.email)
         if db_user is not None:
             if db_user.acc_status is AccountStatus.PENDING:
@@ -49,18 +52,23 @@ class UserService:
 
     @observe("UserService.oauth_login")
     async def oauth_login_user(
-        self, request: Request, dto: OAuthLoginRequest, redis: Redis
+        self,
+        request: Request,
+        dto: OAuthLoginRequest,
+        redis: Redis,
     ):
         db_user: User | None = await self.repo.get_user_by_email(dto.email)
         if db_user is None:
             user_data = dto.model_dump()
             user_data["password"] = ""
-            db_user: User = User(**user_data)
+
+            db_user = User(**user_data)
+
             await self.repo.create_user(db_user)
 
-        if db_user is not None and db_user.acc_status is AccountStatus.PENDING:
+        if db_user.acc_status is AccountStatus.PENDING:
             return RedirectResponse(
-                url=settings.FRONTEND_URL + "/login?error=approval_pending"
+                url=(settings.FRONTEND_URL + "/login?error=approval_pending")
             )
 
         access_jti = uuid.uuid4()
@@ -68,12 +76,15 @@ class UserService:
         version = await redis.get(f"retro-service:{db_user.id}:token-version")
 
         if version is None:
-            await redis.set(f"retro-service:{db_user.id}:token-version", 1)
+            await redis.set(
+                f"retro-service:{db_user.id}:token-version",
+                1,
+            )
             version = 1
         else:
             version = int(version)
 
-        name = db_user.first_name + " " + db_user.last_name
+        name = f"{db_user.first_name} {db_user.last_name}"
 
         access_payload = {
             "user_id": db_user.id,
@@ -107,6 +118,7 @@ class UserService:
             db_user.id,
             expiration_time,
             refresh_jti,
+            access_jti,
             device_name=device_info["device_name"],
             user_agent=device_info["user_agent"],
             ip_address=device_info["ip_address"],
@@ -143,22 +155,26 @@ class UserService:
 
         return response
 
-        # return LoginResponse.model_validate(
-        #     {"access_token": access_token, "refresh_token": token.refresh_token}
-        # )
-
     @observe("UserService.login_user")
     async def login_user(
-        self, response: Response, dto: LoginRequest, redis: Redis, request: Request
+        self,
+        response: Response,
+        dto: LoginRequest,
+        redis: Redis,
+        request: Request,
     ) -> LoginResponseMessage:
         db_user = await self.repo.get_user_by_email(dto.email)
+
         if db_user is None:
             raise RetroException(ErrorCode.INVALID_CREDENTIALS)
 
-        if db_user is not None and db_user.acc_status is AccountStatus.PENDING:
+        if db_user.acc_status is AccountStatus.PENDING:
             raise RetroException(ErrorCode.USER_APPROVAL_PENDING)
 
-        if not Authutils.verify_password(db_user.password, dto.password):
+        if not Authutils.verify_password(
+            db_user.password,
+            dto.password,
+        ):
             raise RetroException(ErrorCode.INVALID_CREDENTIALS)
 
         access_jti = uuid.uuid4()
@@ -166,12 +182,15 @@ class UserService:
         version = await redis.get(f"retro-service:{db_user.id}:token-version")
 
         if version is None:
-            await redis.set(f"retro-service:{db_user.id}:token-version", 1)
+            await redis.set(
+                f"retro-service:{db_user.id}:token-version",
+                1,
+            )
             version = 1
         else:
             version = int(version)
 
-        name = db_user.first_name + " " + db_user.last_name
+        name = f"{db_user.first_name} {db_user.last_name}"
 
         access_payload = {
             "user_id": db_user.id,
@@ -205,6 +224,7 @@ class UserService:
             db_user.id,
             expiration_time,
             refresh_jti,
+            access_jti,
             device_name=device_info["device_name"],
             user_agent=device_info["user_agent"],
             ip_address=device_info["ip_address"],
@@ -238,22 +258,26 @@ class UserService:
         )
 
         return LoginResponseMessage(detail="Login successful")
-        # return LoginResponse.model_validate(
-        #     {"access_token": access_token, "refresh_token": token.refresh_token}
-        # )
 
     @observe("UserService.get_user")
-    async def get_user(self, email) -> UserResponse:
+    async def get_user(
+        self,
+        email: str,
+    ) -> UserResponse:
         db_user = await self.repo.get_user_by_email(email)
-        if db_user == None:
+
+        if db_user is None:
             raise RetroException(ErrorCode.USER_NOT_FOUND)
         logger.info("Get user request")
         return UserResponse.model_validate(db_user)
 
     async def refresh(
-        self, request: Request, response: Response, dto: RefreshRequest, redis: Redis
+        self,
+        request: Request,
+        response: Response,
+        dto: RefreshRequest,
+        redis: Redis,
     ):
-
         token: RefreshToken | None = await self.repo.get_refresh_token(
             dto.refresh_token
         )
@@ -274,7 +298,22 @@ class UserService:
         if db_user is None:
             raise RetroException(ErrorCode.USER_NOT_FOUND)
 
-        await self.repo.revoke_refresh_token(dto.refresh_token, db_user.id)
+        if token.access_jti is not None:
+            expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
+
+            await redis.set(
+                (f"retro-service:{db_user.id}:access-blacklist:{token.access_jti!s}"),
+                "1",
+                ex=expiration_time,
+            )
+
+        revoked_token = await self.repo.revoke_refresh_token(
+            dto.refresh_token,
+            db_user.id,
+        )
+
+        if revoked_token is None:
+            raise RetroException(ErrorCode.INVALID_REFRESH_TOKEN)
 
         key = f"retro-service:{db_user.id}:token-version"
 
@@ -288,7 +327,7 @@ class UserService:
 
         access_jti = uuid.uuid4()
 
-        name = db_user.first_name + " " + db_user.last_name
+        name = f"{db_user.first_name} {db_user.last_name}"
 
         access_payload = {
             "user_id": db_user.id,
@@ -321,6 +360,7 @@ class UserService:
             db_user.id,
             expiration_time,
             refresh_jti,
+            access_jti,
             device_name=device_info["device_name"],
             user_agent=device_info["user_agent"],
             ip_address=device_info["ip_address"],
@@ -354,11 +394,13 @@ class UserService:
         )
 
         return LoginResponseMessage(detail="Refreshed Successfully")
-        # return LoginResponse.model_validate(
-        #     {"access_token": access_token, "refresh_token": token.refresh_token}
-        # )
 
-    async def logout_all(self, id: int, redis: Redis, response: Response):
+    async def logout_all(
+        self,
+        id: int,
+        redis: Redis,
+        response: Response,
+    ):
         await self.repo.revoke_all_by_user_id(id)
         await redis.incr(f"retro-service:{id}:token-version")
         response.delete_cookie(
@@ -369,17 +411,29 @@ class UserService:
             key="access_token",
             path="/",
         )
-        return {"detail": "Logged out all devices sucessfully"}
+
+        return {"detail": "Logged out all devices successfully"}
 
     async def logout(
-        self, dto: RefreshRequest, id: int, redis: Redis, jti: str, response: Response
+        self,
+        dto: RefreshRequest,
+        id: int,
+        redis: Redis,
+        jti: str,
+        response: Response,
     ):
-        old_token = await self.repo.revoke_refresh_token(dto.refresh_token, id)
+        old_token = await self.repo.revoke_refresh_token(
+            dto.refresh_token,
+            id,
+        )
+
         if old_token is None:
             raise RetroException(ErrorCode.INVALID_REFRESH_TOKEN)
         expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
         await redis.set(
-            f"retro-service:{id}:access-blacklist:{jti}", "1", ex=expiration_time
+            (f"retro-service:{id}:access-blacklist:{jti}"),
+            "1",
+            ex=expiration_time,
         )
         response.delete_cookie(
             key="refresh_token",
@@ -389,21 +443,23 @@ class UserService:
             key="access_token",
             path="/",
         )
-        return {"detail": "Logged out sucessfully"}
+
+        return {"detail": "Logged out successfully"}
 
     async def get_all_session(
-        self, user_id: int, refresh_token: UUID
+        self,
+        user_id: int,
+        refresh_token: UUID,
     ) -> list[DeviceSession]:
-
         token_list = await self.repo.get_refresh_tokens_user_id(user_id)
 
         return [
             DeviceSession(
                 sid=str(token.jti),
                 created_at=token.created_at,
-                device_name=token.device_name if token.device_name else "",
+                device_name=(token.device_name if token.device_name else ""),
                 valid_till=token.valid_till,
-                user_agent=token.user_agent if token.user_agent else "",
+                user_agent=(token.user_agent if token.user_agent else ""),
                 current=token.refresh_token == refresh_token,
             )
             for token in token_list
@@ -418,28 +474,43 @@ class UserService:
         response: Response,
         session_id: str,
     ):
+        try:
+            session_jti = UUID(session_id)
+        except ValueError:
+            raise RetroException(ErrorCode.INVALID_SESSION_ID)
+
         token = await self.repo.get_refresh_token_by_jti(
-            jti=UUID(session_id), user_id=id
+            jti=session_jti,
+            user_id=id,
         )
 
         if token is None:
             raise RetroException(ErrorCode.INVALID_SESSION_ID)
 
         if token.refresh_token == dto.refresh_token:
-            await self.logout(
-                dto=dto, id=id, redis=redis, response=response, jti=current_jti
+            return await self.logout(
+                dto=dto,
+                id=id,
+                redis=redis,
+                response=response,
+                jti=current_jti,
             )
 
-        old_token = await self.repo.revoke_refresh_token_by_jti(UUID(session_id), id)
+        old_token = await self.repo.revoke_refresh_token_by_jti(
+            session_jti,
+            id,
+        )
 
         if old_token is None:
             raise RetroException(ErrorCode.INVALID_SESSION_ID)
 
-        expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
+        if token.access_jti is not None:
+            expiration_time = timedelta(minutes=settings.ACCESS_TOKEN_EXP_MINS)
 
-        await redis.set(
-            f"retro-service:{id}:access-blacklist:{token.jti!s}",
-            "1",
-            ex=expiration_time,
-        )
-        return {"detail": "Logged out sucessfully"}
+            await redis.set(
+                (f"retro-service:{id}:access-blacklist:{token.access_jti!s}"),
+                "1",
+                ex=expiration_time,
+            )
+
+        return {"detail": "Logged out successfully"}

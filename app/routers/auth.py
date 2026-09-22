@@ -8,6 +8,7 @@ from app.dependencies.user import get_current_user_email, get_user_service
 from app.exceptions.custom_exceptions import RetroException
 from app.exceptions.errors import ErrorCode
 from app.schemas.user import (
+    DeviceSession,
     LoginRequest,
     LoginResponse,
     LoginResponseMessage,
@@ -87,7 +88,7 @@ async def logout_all(
     return await user_service.logout_all(user.id, redis=redis, response=response)
 
 
-@auth_router.get("/sessions")
+@auth_router.get("/sessions", response_model=list[DeviceSession])
 async def get_sessions(
     refresh_token: str | None = Cookie(default=None, alias="refresh_token"),
     user_service: UserService = Depends(get_user_service),
