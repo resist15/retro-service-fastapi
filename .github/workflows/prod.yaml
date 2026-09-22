@@ -1,0 +1,28 @@
+name: Deploy Retro Music Service
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      REDIS_HOST: ${{ secrets.REDIS_HOST }}
+      REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+      MUSIC_HOST_DIR: ${{ secrets.MUSIC_HOST_DIR }}
+      COVERS_HOST_DIR: ${{ secrets.COVERS_HOST_DIR }}
+      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and deploy
+        run: |
+          docker compose build api
+          docker compose up -d api

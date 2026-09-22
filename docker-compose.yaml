@@ -15,7 +15,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_POOL_SIZE: "10"
       DATABASE_MAX_OVERFLOW: "20"
-
+      CORS_ORIGINS: ${CORS_ORIGINS}
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
 
@@ -24,7 +24,7 @@ services:
       REFRESH_TOKEN_EXP_DAYS: "30"
       ALGORITHM: HS256
 
-      LOG_LEVEL: info
+      LOG_LEVEL: DEBUG
       LOG_FORMAT: json
       SQLALCHEMY_LOG: "false"
       ENVIRONMENT: production
