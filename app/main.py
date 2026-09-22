@@ -7,6 +7,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPX2ClientInstrumentor
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.system_metrics import SystemMetricsInstrumentor
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -59,6 +60,8 @@ def create_application() -> FastAPI:
 
     configure_tracing(settings=settings)
     configure_metrics(settings=settings)
+
+    RedisInstrumentor().instrument()
     SystemMetricsInstrumentor().instrument()
     FastAPIInstrumentor.instrument_app(app=app)
 
