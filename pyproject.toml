@@ -27,6 +27,7 @@ dependencies = [
     "starlette[full]>=1.0.0",
     "structlog>=25.5.0",
     "user-agents>=2.2.0",
+    "uvicorn-worker>=0.4.0",
 ]
 [tool.ruff.lint]
 ignore = ["B008"]

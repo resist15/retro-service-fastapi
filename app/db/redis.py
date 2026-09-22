@@ -14,10 +14,8 @@ class RedisSessionManager:
         try:
             await self.client.ping()
             logger.info("Redis connected successfully")
-        except Exception as e:
+        except Exception:
             logger.error("Redis connection failed")
-            logger.exception(e)
-            raise
 
     async def close(self) -> None:
         if self.client:
