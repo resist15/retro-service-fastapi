@@ -124,3 +124,16 @@ async def logout_specific(
         current_jti=user.auth_token.get("jti"),
         response=response,
     )
+
+
+@auth_router.post("/clear-session")
+async def clear_session(response: Response):
+    response.delete_cookie(
+        key="refresh_token",
+        path="/auth",
+    )
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+    )
+    return {"detail": "Session cleared successfully!"}
